@@ -16,7 +16,7 @@ class TownTable(Table):
             #create cursor
             cursor = db_connection.cursor()
             #execute query
-            cursor.execute("SELECT code, name, ST_MakeValid(ST_AsGeoJson(geom, 5))::jsonb as geom FROM test")
+            cursor.execute("SELECT code, name, ST_AsGeoJson(ST_Transform(ST_SetSRID(geom,32631), 4326))::jsonb as geom FROM town_test where code = 'C001'")
             #get result
             result = cursor.fetchall()
             #close cursor
