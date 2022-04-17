@@ -20,7 +20,21 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import ConfusionMatrixDisplay, RocCurveDisplay
 from sklearn.preprocessing import normalize, LabelEncoder, KBinsDiscretizer
 from meteostat import Daily, Point, Stations
+from routers import map, statistics
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+#include routers to main app
+app.include_router(map.router)
+app.include_router(statistics.router)
 
 @app.get("/db")
 def get_data():
