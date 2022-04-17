@@ -1,4 +1,13 @@
 import pickle
+import numpy
+from json import JSONEncoder
+
+class NumpyArrayEncoder(JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, numpy.ndarray):
+            return obj.tolist()
+        return JSONEncoder.default(self, obj)
+
 
 def openPkl(file_path):
     with  open(file_path,"rb") as file:
