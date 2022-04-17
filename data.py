@@ -17,7 +17,7 @@ DB_CONNECTION = connect()
 
 #this function reads rotation table from db and returns a df
 def get_town_data():
-    sql = 'select code as code_town, latitude, longitude from commune'
+    sql = 'select code as code_town, latitude, longitude, code_unity from commune'
     return pd.read_sql_query(sql, DB_CONNECTION)
 
 #this function reads ticket table from db and returns a df
@@ -157,6 +157,7 @@ def get_transform_data():
 
 def get_data():
     return pd.read_pickle("data/final_data.pkl")
+
 
 
 #df = pd.read_pickle("data/final_data.pkl")
