@@ -1,5 +1,4 @@
-from cProfile import label
-from datetime import datetime, timedelta
+import datetime as dt
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -55,7 +54,7 @@ def data_seasonality(df, column, model="multiplicative", period=365):
     df.sort_index(inplace=True)
     #create a copy for the analysis
     analysis = df[[column]].copy()
-    decompose_result_mult = seasonal_decompose(analysis, model=model, period=period)
+    decompose_result_mult = seasonal_decompose(analysis, model=model, period=period, extrapolate_trend='freq')
     seasonal = decompose_result_mult.seasonal
 
     return seasonal
@@ -110,68 +109,81 @@ def season_qte_cluster(df):
 
 
 #holiday qte using
-def holiday_qet(df):
+def holiday_qte():
+    df = get_data()
+    #group by date 
+    df["net"] = df.groupby(by='date')["net"].transform('sum')
+    df.drop_duplicates(subset='date', inplace=True)
     holidays = df[["net", "holiday"]]
     holidays["net"] = holidays.groupby(by="holiday")["net"].transform("mean")
     holidays.drop_duplicates(subset=['holiday', 'net'], inplace=True)
 
-    print(holidays)
+    return holidays
+
+#holiday qte by town
+def holiday_qte_town(code_town):
+    df = get_data()
+    holidays = df[["net", "holiday", "code_town"]]
+    holidays = holidays.loc[holidays["code_town"] == code_town]
+    holidays["net"] = holidays.groupby(by="holiday")["net"].transform("mean")
+    holidays.drop_duplicates(subset=['holiday', 'net'], inplace=True)
+
+    return holidays
+
+#holiday qte by unity
+def holiday_qte_unity(code_unity):
+    df = get_data()
+    holidays = df[["net", "holiday", "code_unity"]]
+    holidays = holidays.loc[holidays["code_unity"] == code_unity]
+    holidays["net"] = holidays.groupby(by="holiday")["net"].transform("mean")
+    holidays.drop_duplicates(subset=['holiday', 'net'], inplace=True)
+
+    return holidays
+
+#season qte by town
+def season_qte_town(code_town):
+    df = get_data()
+    seasons_df = df[["net", "season", "code_town"]]
+    seasons_df = seasons_df.loc[seasons_df["code_town"] == code_town]
+    seasons_df["net"] = seasons_df.groupby(by="season")["net"].transform("mean")
+    seasons_df.drop_duplicates(subset=['season', 'net'], inplace=True)
+
+    return seasons_df
+
+#season qte by unity
+def season_qte_unity(code_unity):
+    df = get_data()
+    seasons_df = df[["net", "season", "code_unity"]]
+    seasons_df = seasons_df.loc[seasons_df["code_unity"] == code_unity]
+    seasons_df["net"] = seasons_df.groupby(by="season")["net"].transform("mean")
+    seasons_df.drop_duplicates(subset=['season', 'net'], inplace=True)
+
+    return seasons_df
+
+#season qte all towns
+def season_qte():
+    df = get_data()
+    #goup by date
+    df["net"] = df.groupby(by='date')["net"].transform('sum')
+    df.drop_duplicates(subset='date', inplace=True)
+    seasons_df = df[["net", "season"]]
+    seasons_df["net"] = seasons_df.groupby(by='season')["net"].transform('mean')
+    seasons_df.drop_duplicates(subset='season', inplace=True)
+    return seasons_df
+
 
 #monthly waste qte 
-def month_qte_town(df: pd.DataFrame):
-    littoral = {
-        'C001': False,
-        'C002': False,
-        "C003": False,
-        "C004": False,
-        "C005": False,
-        "C006": False,
-        "C007": True,
-        "C008": True,
-        "C009": False,
-        "C010": True,
-        "C011": False,
-        "C012": True,
-        "C013": False,
-        "C014": True,
-        "C015": True,
-        "C016": False,
-        "C017": True,
-        "C018": True,
-        "C019": False,
-        "C020": False,
-        "C021": False,
-        "C022": False,
-        "C023": False,
-        "C024": True,
-        "C025": True,
-        "C026": False,
-        "C027": False,
-        "C028": False,
-        "C029": False,
-        "C030": True,
-        "C031": True
-    }
-
-    df = df[["code_town", "date", "net", "season"]]
-    #add month column
-    df["month"] = pd.DatetimeIndex(df["date"]).month
-    #goup data by town and month
-    df["net"] = df.groupby(['month', "code_town"]).transform('mean')
-    df.drop_duplicates(subset=['month', 'code_town'], inplace=True)
-
+def qte_change_rate_by_season():
+    df = get_data()
     #get towns values
     towns = np.unique(df["code_town"].to_numpy())
     #dict town: dataframe
     towns_dict = {}
     for town in towns:
         if town != 'S001':
-            town_df = df.loc[df["code_town"] == town]
-            town_df["net"] = town_df.groupby(by="season")["net"].transform('sum')
-            town_df.drop_duplicates(subset=['season', 'net'], inplace=True)
-            towns_dict[town] = town_df
-            #plt.plot(town_df["month"], town_df["net"], label=town)
-    #plt.show()
+            towns_dict[town] = season_qte_town(town)
+            
+    
     town_change_rate = {}
     for town in towns_dict.keys():
         town_df = towns_dict[town]
@@ -179,23 +191,14 @@ def month_qte_town(df: pd.DataFrame):
         spring = town_df.loc[town_df['season'] == 'spring']["net"].to_numpy()[0]
         summer = town_df.loc[town_df['season'] == 'summer']["net"].to_numpy()[0]
         autumn = town_df.loc[town_df['season'] == 'autumn']["net"].to_numpy()[0]
-        town_change_rate[town] = 100 - (((winter+spring+autumn)/3)*100)/summer
+        town_change_rate[town] = {
+            "summer": 100 - (((winter+spring+autumn)/3)*100)/summer,
+            "winter": 100 - (((summer+spring+autumn)/3)*100)/winter,
+            "spring": 100 - (((winter+summer+autumn)/3)*100)/spring,
+            "autumn": 100 - (((winter+spring+summer)/3)*100)/autumn
+        }
 
-    littoral_sum = 0
-    littoral_cpt = 0
-    sum = 0
-    cpt = 0
-    for town in town_change_rate.keys():
-        if littoral[town] == True:
-            littoral_sum += town_change_rate[town]
-            littoral_cpt += 1
-        else:
-            sum += town_change_rate[town]
-            cpt += 1
-    
-    print("littoral = ", littoral_sum/littoral_cpt)
-    print("Non littoral = ", sum/cpt)
-    return towns_dict
+    return town_change_rate
 
 def holiday_qte_svc(df):
     #prepare data
@@ -281,7 +284,8 @@ def plot_data(df):
     #print(rules)
 
 
-def trend_by_town(df: pd.DataFrame, period: int):
+def trend_by_town(period: int):
+    df = get_data()
     #group data by town and date
     df["net"] = df.groupby(['code_town', 'date'])["net"].transform('sum')
     df.drop_duplicates(subset=['code_town', 'date'], inplace=True)
@@ -301,8 +305,85 @@ def trend_by_town(df: pd.DataFrame, period: int):
     
     return town_trend
 
+def trend_by_town_year(town_code, period: int, year: int):
+    df = get_data()
+    #group data by town and date
+    df["net"] = df.groupby(['code_town', 'date'])["net"].transform('sum')
+    df.drop_duplicates(subset=['code_town', 'date'], inplace=True)
 
-def season_by_town(df: pd.DataFrame):
+    town_df = df[df["code_town"] == town_code]
+    town_df["date"] = pd.to_datetime(town_df["date"])
+    town_df = town_df[town_df['date'].dt.year == year]
+    town_df = town_df.set_index('date')
+    town_df["date"] = town_df.index
+    
+    trend_df = data_trend(town_df.copy(), "net", model="additive", period=period).to_frame("values")
+    
+    return trend_df
+
+def trend_by_unity(period: int):
+    df = get_data()
+    #group data by town and date
+    df["net"] = df.groupby(['code_unity', 'date'])["net"].transform('sum')
+    df.drop_duplicates(subset=['code_unity', 'date'], inplace=True)
+
+    units = np.unique(df['code_unity'].to_numpy())
+    
+    unity_trend = {}
+    for unity in units:
+        if unity != "U00":
+            unity_df = df.loc[df["code_unity"] == unity]
+            unity_df = unity_df.set_index('date')
+            unity_df.index = pd.to_datetime(unity_df.index)
+            unity_df = unity_df.reindex(pd.date_range(start="2016-01-01", end="2021-12-31"), fill_value=unity_df["net"].mean())
+            unity_df["date"] = unity_df.index
+            trend_df = data_trend(unity_df.copy(), "net", model="additive", period=period).to_frame("values")
+            unity_trend[unity] = trend_df
+    
+    return unity_trend
+
+def trend_by_unity_year(unity_code, period: int, year: int):
+    df = get_data()
+    #group data by town and date
+    df["net"] = df.groupby(['code_unity', 'date'])["net"].transform('sum')
+    df.drop_duplicates(subset=['code_unity', 'date'], inplace=True)
+
+    unity_df = df[df["code_unity"] == unity_code]
+    unity_df["date"] = pd.to_datetime(unity_df["date"])
+    unity_df = unity_df[unity_df['date'].dt.year == year]
+    unity_df = unity_df.set_index('date')
+    unity_df["date"] = unity_df.index
+    
+    trend_df = data_trend(unity_df.copy(), "net", model="additive", period=period).to_frame("values")
+    return trend_df
+
+def all_towns_trend(period: int):
+    df = get_data()
+    #group data by date
+    df["net"] = df.groupby(by='date')["net"].transform('sum')
+    df.drop_duplicates(subset='date', inplace=True)
+
+    trend_df = data_trend(df.copy(), "net", model='additive', period=period).to_frame("values")
+
+    return trend_df
+
+def all_towns_trend_year(period: int, year: int):
+    df = get_data()
+    #group data by town and date
+    df["net"] = df.groupby(['date'])["net"].transform('sum')
+    df.drop_duplicates(subset='date', inplace=True)
+
+    df["date"] = pd.to_datetime(df["date"])
+    df = df[df['date'].dt.year == year]
+    df = df.set_index('date')
+    df["date"] = df.index
+    
+    trend_df = data_trend(df.copy(), "net", model="additive", period=period).to_frame("values")
+    
+    return trend_df
+
+def seasonality_by_town(period: int):
+    df = get_data()
     #group data by town and date
     df["net"] = df.groupby(['code_town', 'date'])["net"].transform('sum')
     df.drop_duplicates(subset=['code_town', 'date'], inplace=True)
@@ -315,19 +396,40 @@ def season_by_town(df: pd.DataFrame):
     for town in towns:
         if town != 'S001':
             town_df = df.loc[df["code_town"] == town]
-            season_df = data_seasonality(town_df.copy(), "net", model="additive").to_frame("values")
-            data_seasonality(town_df, "net", model="additive").plot()
+            season_df = data_seasonality(town_df.copy(), "net", model="additive", period=period).to_frame("values")
             season_df["values"].fillna(season_df["values"], inplace=True)
             town_season[town] = season_df
     
     return town_season
 
+def seasonality_by_unity(period: int):
+    df = get_data()
+    #group data by town and date
+    df["net"] = df.groupby(['code_unity', 'date'])["net"].transform('sum')
+    df.drop_duplicates(subset=['code_unity', 'date'], inplace=True)
+
+    units = np.unique(df['code_unity'].to_numpy())
+    
+    unity_trend = {}
+    for unity in units:
+        if unity != "U00":
+            unity_df = df.loc[df["code_unity"] == unity]
+            trend_df = data_seasonality(unity_df.copy(), "net", model="additive", period=period).to_frame("values")
+            unity_trend[unity] = trend_df
+    
+    return unity_trend
+
+def all_towns_seasonality(period: int):
+    df = get_data()
+    #group data by town and date
+    df["net"] = df.groupby(by='date')["net"].transform('sum')
+    df.drop_duplicates(subset='date', inplace=True)
+    seasonality_df = data_seasonality(df.copy(), "net", model='additive', period=period).to_frame("values")
+    return seasonality_df
 
 def kmeans_towns_trends():
-    #get data from db
-    df = get_data()
     #extract monthly data trend for each town 
-    trends = trend_by_town(df, 30)
+    trends = trend_by_town(30)
 
     #transform and normalize data
     array = []
@@ -339,12 +441,12 @@ def kmeans_towns_trends():
     X_train = np.vstack(array)
 
     #initilize model
-    model = TimeSeriesKMeans(n_clusters=6, metric="softdtw", max_iter=10)
+    #model = TimeSeriesKMeans(n_clusters=6, metric="softdtw", max_iter=10)
     #fit and predict
-    y_pred = model.fit_predict(X_train)
+    #y_pred = model.fit_predict(X_train)
     #save model to pkl file
-    model.to_pickle("models/kmeans_time_series_month.pkl")
-    print(y_pred)
+    model = TimeSeriesKMeans.from_pickle("models/kmeans_time_series_month.pkl")
+    y_pred = model.predict(X_train)
     
     #plot model results
     sz = X_train.shape[1]
@@ -364,7 +466,7 @@ def kmeans_towns_trends():
 
 def main():
     df = get_data()
-    month_qte_town(df)
+    print(all_towns_trend_year(182, 2016))
     #model = TimeSeriesKMeans.from_pickle("models/kmeans_time_series.pkl")
     #print(model)
 
