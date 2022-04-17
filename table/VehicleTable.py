@@ -75,4 +75,45 @@ class VehicleTable(Table):
             
             return None
 
+    #get number of vehicles
+    def get_nb_vehicles(self, db_connection):
+        """
+        Args:
+            db_connection: psycopg2 db connection instance
+        Get all towns
+        """
+        if db_connection != None:
+            #create cursor
+            cursor = db_connection.cursor()
+            #execute query
+            cursor.execute("SELECT count(*) from vehicle") 
+            #get result
+            result = cursor.fetchone()
+            #close cursor
+            cursor.close()
+            #check if result is empty
+            if result != []:
+                return result
+        return None
 
+    #get number of owned vehicles by town
+    def nb_owned_vehicles(self, code, db_connection):
+        """
+        Args:
+            code: town code
+            db_connection: psycopg2 db connection instance
+        Get all towns
+        """
+        if db_connection != None:
+            #create cursor
+            cursor = db_connection.cursor()
+            #execute query
+            cursor.execute("SELECT count(*) from vehicle where code_commune = '{}'".format(code))
+            #get result
+            result = cursor.fetchone()
+            #close cursor
+            cursor.close()
+            #check if result is empty
+            if result != []:
+                return result
+        return None
