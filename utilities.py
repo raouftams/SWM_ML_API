@@ -6,6 +6,10 @@ class NumpyArrayEncoder(JSONEncoder):
     def default(self, obj):
         if isinstance(obj, numpy.ndarray):
             return obj.tolist()
+        if isinstance(obj, numpy.integer):
+            return int(obj)
+        if isinstance(obj, numpy.floating):
+            return float(obj)
         return JSONEncoder.default(self, obj)
 
 
