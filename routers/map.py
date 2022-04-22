@@ -1,8 +1,10 @@
 from fastapi import APIRouter
 import json
 from database.database import connect
+from pattern_recognition import month_clustering
 from table.TownTable import TownTable
 from table.UnityTable import UnityTable
+from utilities import NumpyArrayEncoder
 
 router = APIRouter()
 
@@ -23,7 +25,18 @@ async def all_towns():
     feature_collection = {"type": "FeatureCollection", "features": features}
     return(feature_collection)
 
+@router.get("/all-towns/clustering")
+async def all_towns_clustering():
+    month_data = month_clustering()
+    
+    json_data = {
+        "month": {
+            "towns": list(month_data.keys()),
+            "labels": list(month_data.values())
+        }
+    }
 
+    return json.dumps(json_data, cls=NumpyArrayEncoder)
 
 @router.get("/town/{id}")
 async def get_town(id):
