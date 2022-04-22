@@ -15,6 +15,8 @@ db_connection = connect()
 
 router = APIRouter()
 
+"""---------------General information------------------"""
+
 #get number of used and owned vehicles, number of rotations and total waste qte by town
 @router.get(path="/stats/info/town/{id}")
 async def get_town_information(id):
@@ -63,6 +65,8 @@ async def get_unity_information(code):
         "population": int(town_table.get_unity_population(code, db_connection)[0])
     }
     return json.dumps(data)
+
+"""---------------Waste Trend----------------------"""
 
 #get waste generation trend by (day, month, year) for town
 @router.get(path="/stats/trend/town/{town}/{period}")
@@ -180,6 +184,8 @@ async def get_trend_by_unity_year(unity, period, year):
 
     return json.dumps(json_data, cls=NumpyArrayEncoder)
 
+"""-----------------------Waste Seasonality---------------------------"""
+
 #get waste generation seaonality for all towns
 @router.get(path="/stats/all-towns/seasonality/{period}")
 async def get_seasonality(period):
@@ -241,6 +247,161 @@ async def get_seasonality_by_unity(code, period):
 
     return json.dumps(json_data, cls=NumpyArrayEncoder)
 
+
+"""--------------------Rotations trend--------------------"""
+#number of rotations trend for all towns
+@router.get(path="/stats/rotations/all-towns/trend/{period}")
+async def get_rotations_trend(period):
+    if period == 'year':
+        data = rotations_trend(365)
+    if period == 'day':
+        data = rotations_trend(1)
+    if period == 'month':
+        data = rotations_trend(30)
+
+    #selecting the town
+    data.index = data.index.strftime('%d-%m-%y')
+    json_data ={
+        "labels": data.index.to_numpy(),
+        "values": data["values"].to_numpy()
+    } 
+
+    return json.dumps(json_data, cls=NumpyArrayEncoder)
+
+#number of rotations trend for all towns by year
+@router.get(path="/stats/rotations/all-towns/trend/{period}/{year}")
+async def get_rotations_trend_year(period, year):
+    if period == 'year':
+        data = rotations_trend_year(182, int(year))
+    if period == 'day':
+        data = rotations_trend_year(1, int(year))
+    if period == 'month':
+        data = rotations_trend_year(30, int(year))
+
+    #selecting the town
+    data.index = data.index.strftime('%d-%m-%y')
+    json_data ={
+        "labels": data.index.to_numpy(),
+        "values": data["values"].to_numpy()
+    } 
+
+    return json.dumps(json_data, cls=NumpyArrayEncoder)
+
+#number of rotations trend by (day, month, year) for town
+@router.get(path="/stats/rotations/trend/town/{town}/{period}")
+async def get_rotations_trend_by_town(town, period):
+    data = {}
+    if period == 'year':
+        data = rotations_trend_by_town(365)
+    if period == 'day':
+        data = rotations_trend_by_town(1)
+    if period == 'month':
+        data = rotations_trend_by_town(30)
+
+    #selecting the town
+    town_data = data[town]
+    town_data.index = town_data.index.strftime('%d-%m-%y')
+    json_data ={
+        "labels": town_data.index.to_numpy(),
+        "values": town_data["values"].to_numpy()
+    } 
+
+    return json.dumps(json_data, cls=NumpyArrayEncoder)
+
+#number of rotations trend by (day, month, year) for town by year
+@router.get(path="/stats/rotations/trend/town/{town}/{period}/{year}")
+async def get_rotations_trend_by_town_year(town, period, year):
+    data = {}
+    if period == 'year':
+        data = rotations_trend_by_town_year(town, 182, int(year))
+    if period == 'day':
+        data = rotations_trend_by_town_year(town, 1, int(year))
+    if period == 'month':
+        data = rotations_trend_by_town_year(town, 30, int(year))
+
+    data.index = data.index.strftime('%d-%m-%y')
+    json_data ={
+        "labels": data.index.to_numpy(),
+        "values": data["values"].to_numpy()
+    } 
+
+    return json.dumps(json_data, cls=NumpyArrayEncoder)
+
+#number of rotations trend by (day, month, year) for a unity
+@router.get(path="/stats/rotations/trend/unity/{code}/{period}")
+async def get_rotations_trend_by_unity(code, period):
+    data = {}
+    if period == 'year':
+        data = rotations_trend_by_unity(365)
+    if period == 'day':
+        data = rotations_trend_by_unity(1)
+    if period == 'month':
+        data = rotations_trend_by_unity(30)
+
+    #selecting the unity df
+    df = data[code]
+    df.index = df.index.strftime('%d-%m-%y')
+    json_data = {
+        "labels": df.index.to_numpy(),
+        "values": df["values"].to_numpy()
+    } 
+
+    return json.dumps(json_data, cls=NumpyArrayEncoder)
+
+#number of rotations trend by (day, month, year) for unity by year
+@router.get(path="/stats/rotations/trend/unity/{unity}/{period}/{year}")
+async def get_rotations_trend_by_unity_year(unity, period, year):
+    data = {}
+    if period == 'year':
+        data = rotations_trend_by_unity_year(unity, 182, int(year))
+    if period == 'day':
+        data = rotations_trend_by_unity_year(unity, 1, int(year))
+    if period == 'month':
+        data = rotations_trend_by_unity_year(unity, 30, int(year))
+
+    data.index = data.index.strftime('%d-%m-%y')
+    json_data ={
+        "labels": data.index.to_numpy(),
+        "values": data["values"].to_numpy()
+    } 
+
+    return json.dumps(json_data, cls=NumpyArrayEncoder)
+
+#number of rotations trend by (day, month, year) for town
+@router.get(path="/stats/rotations/trend/all-towns/hour")
+async def get_rotations_trend_hour():
+    data = rotations_trend_by_hour()
+    json_data ={
+        "labels": data['heure'].astype(str).to_numpy(),
+        "values": data["rotations"].to_numpy()
+    } 
+
+    return json.dumps(json_data, cls=NumpyArrayEncoder)
+
+#number of rotations trend by (day, month, year) for town
+@router.get(path="/stats/rotations/trend/hour/town/{town}")
+async def get_rotations_trend_by_town_hour(town):
+    data = rotations_trend_by_town_hour(town)
+    json_data ={
+        "labels": data['heure'].astype(str).to_numpy(),
+        "values": data["rotations"].to_numpy()
+    } 
+
+    return json.dumps(json_data, cls=NumpyArrayEncoder)
+
+#number of rotations trend by (day, month, year) for unity
+@router.get(path="/stats/rotations/trend/hour/unity/{unity}")
+async def get_rotations_trend_by_unity_hour(unity):
+    data = rotations_trend_by_unity_hour(unity)
+    json_data ={
+        "labels": data['heure'].astype(str).to_numpy(),
+        "values": data["rotations"].to_numpy()
+    } 
+
+    return json.dumps(json_data, cls=NumpyArrayEncoder)
+
+"""-----------------Holidays data-------------------------"""
+
 #get waste quantity by hijri holidays
 @router.get(path="/stats/waste/holidays/town/{town}")
 async def get_holiday_waste_by_town(town):
@@ -282,6 +443,8 @@ async def get_holiday_waste_qte():
     }
 
     return(json.dumps(data_json, cls=NumpyArrayEncoder))
+
+"""-----------------Seasons data----------------------"""
 
 #get waste quantity by season
 @router.get(path="/stats/waste/season/town/{town}")
@@ -325,6 +488,9 @@ async def get_season_waste_qte():
 
     return(json.dumps(data_json, cls=NumpyArrayEncoder))
 
+
+"""------------------season's waste qte change rate------------------"""
+
 #get qte waste change rate for all towns
 @router.get(path="/stats/waste/change-rate-by-season")
 async def get_qte_change_rate_by_season():
@@ -354,4 +520,5 @@ async def get_qte_change_rate_by_season():
     }
 
     return json.dumps(json_data)
+
 
