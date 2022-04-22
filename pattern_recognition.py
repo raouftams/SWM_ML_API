@@ -15,7 +15,7 @@ from statsmodels.tsa.seasonal import seasonal_decompose
 from tslearn.clustering import TimeSeriesKMeans
 
 #local imports
-from data import get_data
+from data import get_data, get_rotations_by_hour, get_rotations_number
 from utilities import savePkl, openPkl
 
 #apriori algorithme
@@ -283,7 +283,7 @@ def plot_data(df):
     #rules = get_association_rules(frq_items)
     #print(rules)
 
-
+"""---------- waste quantity --------------"""
 def trend_by_town(period: int):
     df = get_data()
     #group data by town and date
@@ -300,7 +300,7 @@ def trend_by_town(period: int):
             town_df.index = pd.to_datetime(town_df.index)
             town_df = town_df.reindex(pd.date_range(start="2016-01-01", end="2021-12-31"), fill_value=town_df["net"].mean())
             town_df["date"] = town_df.index
-            trend_df = data_trend(town_df.copy(), "net", model="additive", period=period).to_frame("values")
+            trend_df = data_trend(town_df.copy(), "net", model="multiplicative", period=period).to_frame("values")
             town_trend[town] = trend_df
     
     return town_trend
@@ -313,6 +313,7 @@ def trend_by_town_year(town_code, period: int, year: int):
 
     town_df = df[df["code_town"] == town_code]
     town_df["date"] = pd.to_datetime(town_df["date"])
+    print(town_df)
     town_df = town_df[town_df['date'].dt.year == year]
     town_df = town_df.set_index('date')
     town_df["date"] = town_df.index
@@ -427,9 +428,12 @@ def all_towns_seasonality(period: int):
     seasonality_df = data_seasonality(df.copy(), "net", model='additive', period=period).to_frame("values")
     return seasonality_df
 
+def month_clustering():
+    return openPkl("models/year_cluster.pkl")
+
 def kmeans_towns_trends():
     #extract monthly data trend for each town 
-    trends = trend_by_town(30)
+    trends = trend_by_town(365)
 
     #transform and normalize data
     array = []
@@ -441,16 +445,25 @@ def kmeans_towns_trends():
     X_train = np.vstack(array)
 
     #initilize model
-    #model = TimeSeriesKMeans(n_clusters=6, metric="softdtw", max_iter=10)
+    model = TimeSeriesKMeans(n_clusters=6, metric="softdtw", max_iter=10)
     #fit and predict
-    #y_pred = model.fit_predict(X_train)
+    y_pred = model.fit_predict(X_train)
     #save model to pkl file
-    model = TimeSeriesKMeans.from_pickle("models/kmeans_time_series_month.pkl")
-    y_pred = model.predict(X_train)
+    model.to_pickle("models/kmeans_time_series_year.pkl")
+    #model = TimeSeriesKMeans.from_pickle("models/kmeans_time_series_year.pkl")
+    #y_pred = model.fit_predict(X_train)
+    town_pred = {}
+    for i in range(31):
+        if i+1 < 10:
+            town_pred["C00"+str(i+1)] = y_pred[i]
+        else:
+            town_pred["C0"+str(i+1)] = y_pred[i]
     
+    savePkl(town_pred, "models/year_cluster.pkl")
+    print(town_pred)
     #plot model results
     sz = X_train.shape[1]
-    for yi in range(6):
+    for yi in range(4):
         plt.subplot(3, 3, 4 + yi)
         for xx in X_train[y_pred == yi]:
             plt.plot(xx.ravel(), "k-", alpha=.2)
@@ -462,11 +475,127 @@ def kmeans_towns_trends():
             plt.title("DBA $k$-means")
     
     plt.show()
+
+
+"""---------------Rotations--------------------"""
+def rotations_trend(period: int):
+    df = get_rotations_number()
+    df['rotations'] = df.groupby('date')['rotations'].transform('sum')
+    df.drop_duplicates('date', inplace=True)
+    trend = data_trend(df, "rotations", model='additive', period=period).to_frame("values")
     
+    return trend
+
+def rotations_trend_year(period: int, year: int):
+    df = get_rotations_number()
+    df["date"] = pd.to_datetime(df["date"])
+    df = df[df["date"].dt.year == year]
+    df['rotations'] = df.groupby('date')['rotations'].transform('sum')
+    df.drop_duplicates('date', inplace=True)
+    trend = data_trend(df, "rotations", model='additive', period=period).to_frame("values")
+    
+    return trend
+
+def rotations_trend_by_town(period: int):
+    df = get_rotations_number()
+    towns = np.unique(df['code_town'].to_numpy())
+    
+    town_trend = {}
+    for town in towns:
+        if town != "S001":
+            town_df = df[df["code_town"] == town]
+            trend = data_trend(town_df, "rotations", model='additive', period=period).to_frame("values")
+            town_trend[town] = trend
+    
+    return town_trend
+
+def rotations_trend_by_town_year(town, period: int, year: int):
+    df = get_rotations_number()
+
+    town_df = df[df["code_town"] == town]
+    town_df["date"] = pd.to_datetime(town_df["date"])
+    town_df = town_df[town_df['date'].dt.year == year]
+    town_df = town_df.set_index('date')
+    town_df["date"] = town_df.index
+    trend = data_trend(town_df, "rotations", model='additive', period=period).to_frame("values")
+    
+    return trend
+
+def rotations_trend_by_unity(period: int):
+    df = get_rotations_number()
+    unities = np.unique(df['code_unity'].to_numpy())
+    
+    unity_trend = {}
+    for unity in unities:
+        if unity != "U00":
+            unity_df = df[df["code_unity"] == unity]
+            unity_df['rotations'] = unity_df.groupby(by='date')['rotations'].transform('sum')
+            unity_df.drop_duplicates(subset='date', inplace=True)
+            trend = data_trend(unity_df, "rotations", model='additive', period=period).to_frame("values")
+            unity_trend[unity] = trend
+    
+    return unity_trend
+
+def rotations_trend_by_unity_year(unity, period: int, year: int):
+    df = get_rotations_number()
+
+    unity_df = df[df["code_unity"] == unity]
+    unity_df['rotations'] = unity_df.groupby(by='date')['rotations'].transform('sum')
+    unity_df.drop_duplicates(subset='date', inplace=True)
+    unity_df["date"] = pd.to_datetime(unity_df["date"])
+    unity_df = unity_df[unity_df['date'].dt.year == year]
+    unity_df = unity_df.set_index('date')
+    unity_df["date"] = unity_df.index
+    trend = data_trend(unity_df, "rotations", model='additive', period=period).to_frame("values")
+    
+    return trend
+
+def rotations_trend_by_town_hour(town):
+    df = get_rotations_by_hour()
+    
+    town_df = df[df["code_town"] == town]
+    town_df['heure'] = pd.to_datetime(town_df['heure'])
+    times = town_df['heure']
+    town_df['rotations'] = town_df.groupby(times.dt.hour)['rotations'].transform('sum')
+    town_df['heure'] = town_df['heure'].apply(lambda x: x.replace(minute=0, second=0))
+    town_df.drop_duplicates(subset='heure', inplace=True)
+    town_df['heure'] = town_df['heure'].dt.time
+    town_df.sort_values(by='heure', ascending=True, inplace=True)
+    
+    return town_df
+
+def rotations_trend_by_unity_hour(unity):
+    df = get_rotations_by_hour()
+        
+    unity_df = df[df["code_unity"] == unity]
+    unity_df['heure'] = pd.to_datetime(unity_df['heure'])
+    times = unity_df['heure']
+    unity_df['rotations'] = unity_df.groupby(times.dt.hour)['rotations'].transform('sum')
+    unity_df['heure'] = unity_df['heure'].apply(lambda x: x.replace(minute=0, second=0))
+    unity_df.drop_duplicates(subset='heure', inplace=True)
+    unity_df['heure'] = unity_df['heure'].dt.time
+    unity_df.sort_values(by='heure', ascending=True, inplace=True)
+    unity_df.dropna(axis=0, inplace=True)
+    
+    return unity_df
+
+def rotations_trend_by_hour():
+    df = get_rotations_by_hour()
+    df['heure'] = pd.to_datetime(df['heure'])
+    df['heure'] = df['heure'].apply(lambda x: x.replace(minute=0, second=0))
+    df['rotations'] = df.groupby(by='heure')['rotations'].transform('sum')
+    df.drop_duplicates(subset='heure', inplace=True)
+    df['heure'] = df['heure'].dt.time
+    df.sort_values(by='heure', ascending=True, inplace=True)
+    df.dropna(axis=0, inplace=True)
+    
+    return df
+
+
 
 def main():
     df = get_data()
-    print(all_towns_trend_year(182, 2016))
+    print(trend_by_town_year('C002', 30, 2021))
     #model = TimeSeriesKMeans.from_pickle("models/kmeans_time_series.pkl")
     #print(model)
 
