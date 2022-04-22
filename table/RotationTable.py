@@ -5,6 +5,7 @@ class RotationTable(Table):
     def __init__(self) -> None:
         super().__init__("rotation")
     
+
     #get number of rotations by town 
     def get_town_nb_rotations(self, town_code, db_connection):
         """
@@ -48,6 +49,26 @@ class RotationTable(Table):
                 return result
         return None
 
+    #get number of rotations by town and date
+    def nb_rotations_by_town_date(self, db_connection):
+        """
+        Args:
+            db_connection: psycopg2 db connection instance
+        Get all towns
+        """
+        if db_connection != None:
+            #create cursor
+            cursor = db_connection.cursor()
+            #execute query
+            cursor.execute("SELECT code_town, date, count(*) from rotation group by(code_town, date)")
+            #get result
+            result = cursor.fetchone()
+            #close cursor
+            cursor.close()
+            #check if result is empty
+            if result != []:
+                return result
+        return None
 
     #get number of daily rotations by unity
     def get_town_nb_rotations_day(self, code, db_connection):
