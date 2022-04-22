@@ -17,7 +17,7 @@ DB_CONNECTION = connect()
 
 #this function reads rotation table from db and returns a df
 def get_town_data():
-    sql = 'select code as code_town, latitude, longitude, code_unity from commune'
+    sql = 'select code as code_town, latitude, longitude, pop2016, pop2017, pop2018, pop2019, pop2020, pop2021, pop2022, code_unity from commune'
     return pd.read_sql_query(sql, DB_CONNECTION)
 
 #this function reads ticket table from db and returns a df
@@ -145,18 +145,31 @@ def add_days(df):
     df["day"] = df.apply(lambda row: row["date"].strftime("%A"), axis=1)
     return df
 
+#get rotations number by town and date
+def get_rotations_number():
+    sql = 'SELECT r.code_town, c.code_unity, r.date, count(r.*) as rotations from rotation r, commune c where r.code_town = c.code group by(code_unity, code_town, date)'
+    return pd.read_sql_query(sql, DB_CONNECTION)
+
+def get_rotations_by_hour():
+    sql = "select r.code_town, r.heure, c.code_unity, count(r.*) as rotations from rotation r, commune c where date >= '2021-01-01' and r.code_town = c.code group by(code_unity, code_town, heure)"
+    return pd.read_sql_query(sql, DB_CONNECTION)
+
+def get_efficiency_by_hour():
+    sql = "select r.code_town, r.heure, c.code_unity, (t.net/1000)/v.volume as compact_rate from rotation r, commune c, vehicle v, ticket t where r.date >= '2021-01-01' and r.code_town = c.code and v.code = r.id_vehicle and v.volume != 0 and t.code = r.code_ticket and t.cet = r.cet and t.date = t.date"
+    return pd.read_sql_query(sql, DB_CONNECTION)
+
 def get_transform_data():
     df = read_and_merge_tables()
-    get_weather_data()    
-    df = add_weather_to_data(df)
+    #get_weather_data()    
+    #df = add_weather_to_data(df)
     df = add_hijri_holidays(df)
     df = add_seasons(df)
     df = get_year(df)
-    df.to_pickle("data/final_data.pkl")
-
+    df.to_pickle("data/final_data_population.pkl")
+    
 
 def get_data():
-    return pd.read_pickle("data/final_data.pkl")
+    return pd.read_pickle("data/final_data_population.pkl")
 
 
 
