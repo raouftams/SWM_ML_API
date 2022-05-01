@@ -5,17 +5,18 @@ from skforecast.ForecasterAutoreg import ForecasterAutoreg
 from skforecast.ForecasterAutoregMultiOutput import ForecasterAutoregMultiOutput
 from skforecast.model_selection import grid_search_forecaster
 from skforecast.model_selection import backtesting_forecaster
-from sklearn.metrics import mean_pinball_loss
+from sklearn.metrics import mean_pinball_loss, r2_score
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.neural_network import MLPRegressor
 from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.preprocessing import MinMaxScaler
 from xgboost import XGBRegressor
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import train_test_split
 from joblib import dump, load
 from data import add_hijri_holidays, get_data
 from pattern_recognition import data_trend
-import math
+import math, datetime
 #this function is a personalized encoder
 def encode_data(df):
     #encode cet values
@@ -90,11 +91,68 @@ def preprocess_data(df: pd.DataFrame):
     #df['y'] = df.groupby(['date', 'code_town'])['y'].transform('sum')
     #df = df.drop_duplicates(subset=['date', 'code_town'])
     df = df.set_index('date')
-    df = df.asfreq('B')
+    
     df = df.fillna(df.median())
+
     df.drop(['latitude', 'longitude', 'code_ticket', 'code_town', 'code_unity', 'net', 'date_hijri', 'cet', 'pop2016', 'pop2017', 'pop2018', 'pop2019', 'pop2020', 'pop2021','pop2022'], axis=1, inplace=True)    
+    scaler = MinMaxScaler()
+    df[['year', 'month', 'day', 'season', 'holiday', 'population', 'temperature', 'vent', 'y']] = scaler.fit_transform(df[['year', 'month', 'day', 'season', 'holiday', 'population', 'temperature', 'vent', 'y']])
     return df
 
+def preprocess_data_weekly(df: pd.DataFrame):
+    df = df[df["code_town"] != 'S001']
+    df['date'] = pd.to_datetime(df['date'])    
+    df['net'] = df.groupby(by=['date', 'code_town'])['net'].transform('sum')
+    df.drop_duplicates(subset=['code_town', 'date'], inplace=True)
+    df2 = df.groupby(by='date').agg({
+        'net': 'sum', 
+        'pop2016': 'sum', 
+        'pop2017': 'sum', 
+        'pop2018': 'sum',
+        'pop2019': 'sum',
+        'pop2020': 'sum',
+        'pop2021': 'sum',
+        'pop2022': 'sum'
+    })
+    df['net'] = df.groupby('date')['net'].transform('sum')
+    df.drop_duplicates('date', inplace=True)
+    df['week'] = df.apply(lambda row: row['date'] - datetime.timedelta(days=row['date'].weekday()), axis=1)
+    df['net'] = df.groupby('week')['net'].transform('sum')
+    df.drop_duplicates('week', inplace=True)
+    
+    df2['date'] = df2.index
+    df2['week'] = df2.apply(lambda row: row['date'] - datetime.timedelta(days=row['date'].weekday()), axis=1)
+    df2['net'] = df2.groupby('week')['net'].transform('sum')
+    df2.drop_duplicates('week', inplace=True)
+    
+    #sort data by date
+    df.sort_values(by='date', ascending=True, inplace=True)
+
+    #insert population column
+    df['population'] = 1
+    df.loc[df['date'].dt.year == 2016, 'population'] = df[df2.index.year == 2016]['pop2016']
+    df.loc[df['date'].dt.year == 2017, 'population'] = df[df2.index.year == 2017]['pop2017']
+    df.loc[df['date'].dt.year == 2018, 'population'] = df[df2.index.year == 2018]['pop2018']
+    df.loc[df['date'].dt.year == 2019, 'population'] = df[df2.index.year == 2019]['pop2019']
+    df.loc[df['date'].dt.year == 2020, 'population'] = df[df2.index.year == 2020]['pop2020']
+    df.loc[df['date'].dt.year == 2021, 'population'] = df[df2.index.year == 2021]['pop2021']
+    df.loc[df['date'].dt.year == 2022, 'population'] = df[df2.index.year == 2022]['pop2022']
+
+    #encode data
+    df = encode_data(df)
+
+    #change columns order and put the net column as class column
+    df["y"] = df['net']/1000
+    df['y'] = df['y'].astype(int)
+    #group data
+    #df['y'] = df.groupby(['date', 'code_town'])['y'].transform('sum')
+    #df = df.drop_duplicates(subset=['date', 'code_town'])
+    df = df.set_index('date')
+    #df = df.asfreq('W')
+    #df.fillna(0, inplace=True)
+    df['y'].dropna(axis=0, inplace=True)
+    df.drop(['latitude', 'longitude', 'week', 'code_ticket', 'code_town', 'code_unity', 'net', 'date_hijri', 'cet', 'pop2016', 'pop2017', 'pop2018', 'pop2019', 'pop2020', 'pop2021','pop2022'], axis=1, inplace=True)    
+    return df
 
 def prepare_data():
     df = get_data()
@@ -102,44 +160,50 @@ def prepare_data():
     return data
 
 def forcast(data):
-    new_data = predict_forcaster()
-    
-    data = pd.concat([data, new_data], axis=0)
-    
-    steps = 260
+    #new_data = predict_forcaster()
+    print(data)
+    #data = pd.concat([data, new_data], axis=0)
+    data['y'] = data['y'].rolling(3).mean()
+    data.dropna(axis=0, inplace=True)
+    #print(data)
+    data = data.reset_index(drop=True)
+    steps = 280
     data_train = data.iloc[:-steps, :]
     data_test = data.iloc[-steps:, :]
-    print(data)
-    forecaster = ForecasterAutoreg(
-                    regressor =MLPRegressor(random_state=0, hidden_layer_sizes=(20,), activation="identity", solver='lbfgs', max_iter=500),
-                    lags = 365
+
+    forecaster = ForecasterAutoregMultiOutput(
+                    regressor =MLPRegressor(random_state=0, hidden_layer_sizes=(100,), activation="logistic", solver='lbfgs', max_iter=15000),
+                    lags = 360,
+                    steps = steps
                 )
 
     forecaster.fit(
         y = data_train['y'],
-        exog = data_train[['year', 'month', 'day', 'season', 'holiday', 'population']]
+        exog = data_train[['year', 'month', 'day', 'season', 'holiday', 'population', 'temperature', 'vent']]
     )
 
     #dump(forecaster, filename='models/forcaster.py')
     predictions = forecaster.predict(
                 steps = steps,
-                exog = data_test[['year', 'month', 'day', 'season', 'holiday', 'population']]
+                exog = data_test[['year', 'month', 'day', 'season', 'holiday', 'population', 'temperature', 'vent']]
                )
     # Add datetime index to predictions
     predictions = pd.Series(data=predictions, index=data.index)
     print(predictions)
     fig, ax=plt.subplots(figsize=(9, 4))
     data_train['y'].plot(ax=ax, label='train')
-    #data_test['y'].rolling(3).mean().plot(ax=ax, label='test')
+    data_test['y'].plot(ax=ax, label='test')
     predictions.plot(ax=ax, label='predictions')
     ax.legend()
     plt.show()
     error_mse = mean_squared_error(
-                y_true = data_test['y'].rolling(3).mean().iloc[-steps+3:],
-                y_pred = predictions.iloc[-steps+3:]
+                y_true = data_test['y'].iloc[-steps:],
+                y_pred = predictions.iloc[-steps:]
             )
     print(f"Test error (rmse): {math.sqrt(error_mse)}")
-
+    y_true = data_test['y'].iloc[-steps:]
+    y_pred = predictions.iloc[-steps:]
+    print(f"Score: {r2_score(y_true, y_pred.to_numpy())}")
 
 def interval_prediction(data):
     end_train = '2020-06-01 00:00:00'
@@ -235,10 +299,11 @@ def predict_forcaster():
     return new_df
 
 def main():
+    
     data = prepare_data()
     #interval_prediction(data)
     forcast(data)
-    predict_forcaster()
+    #predict_forcaster()
 
 
 
