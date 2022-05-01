@@ -81,9 +81,21 @@ def get_temperature(date, town):
     except:
         return np.nan()
 
+#this function return air temperature in specific place (latitude and longitude) at specific date
+def get_wind_speed(date, town):
+    #transform date to str format 'yyyy-mm-dd'
+    date_str = date.strftime("%Y-%m-%d")
+    #read weather data from pickle file
+    data_dict = openPkl('data/weather_data.pkl')
+    try:
+        return data_dict[town].loc[date_str]['wspd'] 
+    except:
+        return np.nan()
+
 #this function adds weather data to our dataframe
 def add_weather_to_data(df):
     df['temperature'] = df.swifter.apply(lambda row: get_temperature(row['date'], row['code_town']), axis=1)
+    df['vent'] = df.swifter.apply(lambda row: get_wind_speed(row['date'], row['code_town']), axis=1)
     return df
 
 #this function gets a hijri data and returns an islamic holiday 
@@ -160,17 +172,16 @@ def get_efficiency_by_hour():
 
 def get_transform_data():
     df = read_and_merge_tables()
-    #get_weather_data()    
-    #df = add_weather_to_data(df)
+    get_weather_data()    
+    df = add_weather_to_data(df)
     df = add_hijri_holidays(df)
     df = add_seasons(df)
     df = get_year(df)
-    df.to_pickle("data/final_data_population.pkl")
+    df.to_pickle("data/final_data.pkl")
     
 
 def get_data():
-    return pd.read_pickle("data/final_data_population.pkl")
-
+    return pd.read_pickle("data/final_data.pkl")
 
 
 #df = pd.read_pickle("data/final_data.pkl")

@@ -12,7 +12,7 @@ from mlxtend.preprocessing import TransactionEncoder
 from sklearn.naive_bayes import GaussianNB
 from sklearn.cluster import KMeans
 from statsmodels.tsa.seasonal import seasonal_decompose
-from tslearn.clustering import TimeSeriesKMeans
+from tslearn.clustering import TimeSeriesKMeans, silhouette_score
 
 #local imports
 from data import get_data, get_rotations_by_hour, get_rotations_number
@@ -463,7 +463,7 @@ def kmeans_towns_trends():
     print(town_pred)
     #plot model results
     sz = X_train.shape[1]
-    for yi in range(4):
+    for yi in range(6):
         plt.subplot(3, 3, 4 + yi)
         for xx in X_train[y_pred == yi]:
             plt.plot(xx.ravel(), "k-", alpha=.2)
@@ -475,6 +475,7 @@ def kmeans_towns_trends():
             plt.title("DBA $k$-means")
     
     plt.show()
+    print(silhouette_score(X_train, y_pred, metric='softdtw'))
 
 
 """---------------Rotations--------------------"""
@@ -595,10 +596,13 @@ def rotations_trend_by_hour():
 
 def main():
     df = get_data()
-    print(trend_by_town_year('C002', 30, 2021))
+    kmeans_towns_trends()
     #model = TimeSeriesKMeans.from_pickle("models/kmeans_time_series.pkl")
     #print(model)
 
+    #data = all_towns_trend(7)
+    #plt.plot(data['values'])
+    #plt.show()
 
 if __name__ == "__main__":
     main()
