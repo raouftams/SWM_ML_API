@@ -10,6 +10,8 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.neural_network import MLPRegressor
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.preprocessing import MinMaxScaler
+from catboost import CatBoostRegressor
+from sklearn.svm import SVR
 from xgboost import XGBRegressor
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import train_test_split
@@ -17,6 +19,7 @@ from joblib import dump, load
 from data import add_hijri_holidays, get_data
 from pattern_recognition import data_trend
 import math, datetime
+
 #this function is a personalized encoder
 def encode_data(df):
     #encode cet values
@@ -167,14 +170,13 @@ def forcast(data):
     data.dropna(axis=0, inplace=True)
     #print(data)
     data = data.reset_index(drop=True)
-    steps = 280
+    steps = 30
     data_train = data.iloc[:-steps, :]
     data_test = data.iloc[-steps:, :]
 
-    forecaster = ForecasterAutoregMultiOutput(
-                    regressor =MLPRegressor(random_state=0, hidden_layer_sizes=(100,), activation="logistic", solver='lbfgs', max_iter=15000),
-                    lags = 360,
-                    steps = steps
+    forecaster = ForecasterAutoreg(
+                    regressor = CatBoostRegressor(random_state=0),
+                    lags = 365
                 )
 
     forecaster.fit(

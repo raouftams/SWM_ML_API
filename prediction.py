@@ -148,13 +148,13 @@ def mlpr(df: pd.DataFrame):
 
     reg = MLPRegressor(hidden_layer_sizes=(10,), activation="relu", solver='adam', max_iter=500)
     reg.fit(X, y)
-    #print(reg.score(X_test, y_test))
-    #y_pred = reg.predict(X_test)
-    #print(y_pred[:5])
-    #print(y_test[:5])
-    #plt.plot(y_test)
-    #plt.plot(y_pred)
-    #plt.show()
+    print(reg.score(X_test, y_test))
+    y_pred = reg.predict(X_test)
+    print(y_pred[:5])
+    print(y_test[:5])
+    plt.plot(y_test)
+    plt.plot(y_pred)
+    plt.show()
     savePkl(reg, "models/mlp_by_town.pkl")
 
 def main():

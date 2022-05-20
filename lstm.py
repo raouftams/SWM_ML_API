@@ -2,16 +2,21 @@
 import pandas as pd
 import numpy as np
 from math import sqrt
+from datetime import datetime
 from matplotlib import pyplot
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.preprocessing import MinMaxScaler
 from keras.models import Sequential
-from keras.layers import Dense
-from keras.layers import LSTM
+from keras.layers import Dense, Dropout
+from keras.layers import LSTM, GRU
+from keras.optimizers import *
 from keras.preprocessing.sequence import TimeseriesGenerator
 import math
 from data import get_data
+from catboost import CatBoostRegressor
+from skforcast import preprocess_data_weekly
 
+from utilities import openPkl, savePkl
 
 
 def encode_data(df):
@@ -209,33 +214,54 @@ dataset = dataset.astype('float32')
 scaler = MinMaxScaler(feature_range=(0, 1))
 dataset = scaler.fit_transform(dataset.reshape(-1, 1))
 # split into train and test sets
-train_size = int(len(dataset) * 0.67)
+train_size = int(len(dataset) * 0.75)
 test_size = len(dataset) - train_size
 train, test = dataset[0:train_size,:], dataset[train_size:len(dataset),:]
 # reshape into X=t and Y=t+1
-look_back = 3
+look_back = 365
 trainX, trainY = create_dataset(train, look_back)
 testX, testY = create_dataset(test, look_back)
+#dataX, dataY = create_dataset(dataset, look_back) 
 # reshape input to be [samples, time steps, features]
 trainX = np.reshape(trainX, (trainX.shape[0], trainX.shape[1], 1))
 testX = np.reshape(testX, (testX.shape[0], testX.shape[1], 1))
-print(trainX)
+
 # create and fit the LSTM network
 batch_size = 1
-model = Sequential()
-model.add(LSTM(30, batch_input_shape=(batch_size, look_back, 1), stateful=True))
-model.add(Dense(1))
-model.compile(loss='mean_squared_error', optimizer='adam')
-print('model created')
-for i in range(20):
-    model.fit(trainX, trainY, epochs=1, batch_size=batch_size, verbose=2, shuffle=False)
-    model.reset_states()
+#model = Sequential()
+##LSTM model
+#model.add(LSTM(4, return_sequences=True, batch_input_shape=(batch_size, look_back, 1), stateful=True))
+#model.add(LSTM(4, return_sequences=True))
+#model.add(LSTM(4))
+#model.add(Dense(1))
+#model.compile(loss='mean_squared_error', optimizer='adam')
+#print('model created')
+#for i in range(20):
+#    model.fit(trainX, trainY, epochs=1, batch_size=batch_size, verbose=2, shuffle=False)
+#    model.reset_states()
 
-print('finished training')
+#ANN model
+#model.add(GRU(30, input_shape=(look_back, 1)))
+#model.add(Dense(1))
+#model.compile(loss='mean_squared_error', optimizer='adam', metrics=['accuracy'])
+#model.fit(trainX, trainY, epochs=20, batch_size=batch_size, shuffle=False)
+#print('finished training')
+
+#MLP model
+#model.add(Dense(20, activation='relu', input_dim=trainX.shape[1]))
+#model.add(Dense(10))
+#model.add(Dense(1))
+#model.compile(loss='mean_squared_error', optimizer='adam')
+#model.fit(trainX, trainY, epochs=100, batch_size=1, verbose=2, shuffle=False)
+
 # make predictions
-trainPredict = model.predict(trainX, batch_size=batch_size)
-model.reset_states()
-testPredict = model.predict(testX, batch_size=batch_size)
+#savePkl(model, 'models/lstm.pkl')
+##model = openPkl('models/lstm.pkl')
+#trainPredict = model.predict(trainX, batch_size=batch_size)
+#model.reset_states()
+#testPredict = model.predict(testX, batch_size=batch_size)
+
+
 # invert predictions
 #trainPredict = scaler.inverse_transform(trainPredict)
 #trainY = scaler.inverse_transform([trainY])
@@ -243,24 +269,68 @@ testPredict = model.predict(testX, batch_size=batch_size)
 #testY = scaler.inverse_transform([testY])
 # calculate root mean squared error
 
-trainScore = math.sqrt(mean_squared_error(trainY, trainPredict[:,0]))
-print('Train Score: %.2f RMSE' % (trainScore))
-testScore = math.sqrt(mean_squared_error(testY, testPredict[:,0]))
-print('Test Score: %.2f RMSE' % (testScore))
-r2score = r2_score(testY, testPredict[:,0])
-print('test Score%.2f R2' % (r2score))
-# shift train predictions for plotting
-trainPredictPlot = np.empty_like(dataset)
-trainPredictPlot[:, :] = np.nan
-trainPredictPlot[look_back:len(trainPredict)+look_back, :] = trainPredict
-# shift test predictions for plotting
-testPredictPlot = np.empty_like(dataset)
-testPredictPlot[:, :] = np.nan
-testPredictPlot[len(trainPredict)+(look_back*2)+1:len(dataset)-1, :] = testPredict
-# plot baseline and predictions
-pyplot.plot(dataset)
-pyplot.plot(trainPredictPlot)
-pyplot.plot(testPredictPlot)
-pyplot.show()
+#trainScore = math.sqrt(mean_squared_error(trainY, trainPredict[:,0]))
+#print('Train Score: %.4f RMSE' % (trainScore))
+#testScore = math.sqrt(mean_squared_error(testY, testPredict[:,0]))
+#print('Test Score: %.4f RMSE' % (testScore))
+#r2score = r2_score(testY, testPredict[:,0])
+#print('test Score%.4f R2' % (r2score))
+## shift train predictions for plotting
+#trainPredictPlot = np.empty_like(dataset)
+#trainPredictPlot[:, :] = np.nan
+#trainPredictPlot[look_back:len(trainPredict)+look_back, :] = trainPredict
+## shift test predictions for plotting
+#testPredictPlot = np.empty_like(dataset)
+#testPredictPlot[:, :] = np.nan
+#testPredictPlot[len(trainPredict)+(look_back*2)+1:len(dataset)-1, :] = testPredict
+## plot baseline and predictions
+#pyplot.plot(dataset)
+#pyplot.plot(trainPredictPlot)
+#pyplot.plot(testPredictPlot)
+#pyplot.show()
 
- 
+
+dataframe = preprocess_data(get_data())
+old_df = dataframe[dataframe.index >= datetime(2020, 12, 30)]
+print(old_df)
+new_df = old_df[old_df.index.year == 2021].copy()
+new_df['date'] = new_df.index
+new_df['date'] = new_df['date'].apply(lambda x: x.replace(year = x.year + 1))
+new_df = new_df.set_index(new_df['date'])
+new_df.drop('date', axis=1, inplace=True)
+new_df['y'] = new_df['y'].apply(lambda x: 0)
+
+print(new_df)
+
+model = openPkl('models/lstm.pkl')
+for index, row in new_df.iterrows():
+    old_df = old_df.append(row, ignore_index=True)
+    print(old_df)
+    new_dataset = old_df['y'].to_numpy()
+    new_dataset = new_dataset.astype('float32')
+    # normalize the dataset
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    new_dataset = scaler.fit_transform(new_dataset.reshape(-1, 1))
+
+    new_datasetX, new_datasetY = create_dataset(new_dataset, 365)
+    new_datasetX = np.reshape(new_datasetX, (new_datasetX.shape[0], new_datasetX.shape[1], 1))
+    print(new_datasetX)
+    size = new_datasetX.shape[0]
+    last_row = [new_datasetX[size-1, :]]
+    
+    y_pred = model.predict(last_row, batch_size=batch_size)
+    predicted = scaler.inverse_transform(y_pred)
+    print(predicted)
+    old_df.iloc[-1, old_df.columns.get_loc('y')] = predicted[0]
+    
+print(old_df)
+predicted_year = old_df[old_df.index > 364]['y'].to_numpy()
+print(predicted_year)
+old_data = old_df[old_df.index < 365]['y'].to_numpy()
+print(old_data)
+pyplot.plot(old_data)
+pyplot.plot(predicted_year)
+pyplot.show()
+            
+    
+    
