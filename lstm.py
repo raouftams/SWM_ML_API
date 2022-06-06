@@ -12,7 +12,7 @@ from keras.layers import LSTM, GRU
 from keras.optimizers import *
 from keras.preprocessing.sequence import TimeseriesGenerator
 import math
-from data import get_data
+from data import add_hijri_holidays, get_data
 from catboost import CatBoostRegressor
 from skforcast import preprocess_data_weekly
 
@@ -29,7 +29,11 @@ def encode_data(df):
     seasons = {"winter": 0.1, "spring":0.2, "summer":0.3, "autumn":0.4}
     for season in seasons.items():
         df['season'] = df['season'].replace([season[0]], season[1])
-
+    #transform dates
+    df['date'] = pd.to_datetime(df['date']) 
+    df['year'] = df['date'].dt.year
+    df['month'] = df['date'].dt.month
+    df['day'] = df['date'].dt.day
     #encode holidays
     holidays = {"normal": 0.1, "Ramadhan":0.2, "Eid al-Fitr":0.3, "Eid al-Adha":0.4, "Islamic New Year": 0.5, "Ashura": 0.6, "Prophet's Birthday": 0.7}
     for holiday in holidays.items():
@@ -78,17 +82,21 @@ def preprocess_data(df: pd.DataFrame):
 
     #encode data
     df = encode_data(df)
-
+    df = df.set_index('date')
+    
+    df['weekday'] = [i.isoweekday() for i in df.index] 
+    df['is_weekday'] = df.apply(lambda row: row['weekday'] == 5 or row['weekday']==6, axis=1)
     #change columns order and put the net column as class column
     df["y"] = df['net']/1000
     df['y'] = df['y'].astype(int)
-    df['y'] = df['y'].rolling(3).mean()
+    df['y'] = df['y'].rolling(7).mean()
     df.dropna(axis=0, inplace=True)
     #group data
     #df['y'] = df.groupby(['date', 'code_town'])['y'].transform('sum')
     #df = df.drop_duplicates(subset=['date', 'code_town'])
-    df = df.set_index('date')
-    df.drop(['latitude', 'longitude', 'year', 'code_ticket', 'code_town', 'code_unity', 'net', 'date_hijri', 'cet', 'pop2016', 'pop2017', 'pop2018', 'pop2019', 'pop2020', 'pop2021','pop2022'], axis=1, inplace=True)    
+    
+
+    df.drop(['latitude', 'longitude', 'pressure', 'weekday', 'code_ticket', 'code_town', 'code_unity', 'net', 'date_hijri', 'cet', 'pop2016', 'pop2017', 'pop2018', 'pop2019', 'pop2020', 'pop2021','pop2022'], axis=1, inplace=True)    
     return df
 
 # frame a sequence as a supervised learning problem
@@ -194,25 +202,43 @@ def main():
         pyplot.show()
 
 
-# convert an array of values into a dataset matrix
+## convert an array of values into a dataset matrix
 def create_dataset(dataset, look_back=1):
-	dataX, dataY = [], []
-	for i in range(len(dataset)-look_back-1):
-		a = dataset[i:(i+look_back), 0]
-		dataX.append(a)
-		dataY.append(dataset[i + look_back, 0])
-	return np.array(dataX), np.array(dataY)
+    dataX, dataY = [], []
+    for i in range(len(dataset)-look_back-1):
+        #print("dagi")
+        #for j in range(i, i+look_back):
+        #    print(dataset[j,8])
+
+        a = dataset[i:(i+look_back), 8]
+        exog = []
+        exog.extend(dataset[i+look_back])
+        for s in a:
+            exog.append(s)
+        y = exog.pop(8)
+        dataX.append(exog)
+        dataY.append(y)
+    return np.array(dataX), np.array(dataY)
+
+#def create_dataset(dataset, look_back=1):
+#	dataX, dataY = [], []
+#	for i in range(len(dataset)-look_back-1):
+#		a = dataset[i:(i+look_back), 0]
+#		dataX.append(a)
+#		dataY.append(dataset[i + look_back, 0])
+#	return np.array(dataX), np.array(dataY)
+
 # fix random seed for reproducibility
 np.random.seed(7)
 # load the dataset
+df = get_data()
 dataframe = preprocess_data(get_data())
-#dataframe.to_csv("prepared_data.csv")
-
-dataset = dataframe['y'].to_numpy()
+df = dataframe[['day', 'month', 'year', 'temperature', 'vent', 'population', 'holiday', 'season', 'y']]
+dataset = df.to_numpy()
 dataset = dataset.astype('float32')
 # normalize the dataset
 scaler = MinMaxScaler(feature_range=(0, 1))
-dataset = scaler.fit_transform(dataset.reshape(-1, 1))
+dataset = scaler.fit_transform(dataset)
 # split into train and test sets
 train_size = int(len(dataset) * 0.75)
 test_size = len(dataset) - train_size
@@ -221,43 +247,47 @@ train, test = dataset[0:train_size,:], dataset[train_size:len(dataset),:]
 look_back = 365
 trainX, trainY = create_dataset(train, look_back)
 testX, testY = create_dataset(test, look_back)
-#dataX, dataY = create_dataset(dataset, look_back) 
+#print(trainY)
+dataX, dataY = create_dataset(dataset, look_back) 
 # reshape input to be [samples, time steps, features]
-trainX = np.reshape(trainX, (trainX.shape[0], trainX.shape[1], 1))
-testX = np.reshape(testX, (testX.shape[0], testX.shape[1], 1))
-
+#trainX = np.reshape(trainX, (trainX.shape[0], trainX.shape[1], 1))
+#testX = np.reshape(testX, (testX.shape[0], testX.shape[1], 1))
+#print(trainX)
+#print(trainY)
 # create and fit the LSTM network
 batch_size = 1
 #model = Sequential()
 ##LSTM model
-#model.add(LSTM(4, return_sequences=True, batch_input_shape=(batch_size, look_back, 1), stateful=True))
+#model.add(LSTM(4, return_sequences=True, batch_input_shape=(batch_size, look_back+8, 1), stateful=True))
 #model.add(LSTM(4, return_sequences=True))
 #model.add(LSTM(4))
 #model.add(Dense(1))
 #model.compile(loss='mean_squared_error', optimizer='adam')
 #print('model created')
 #for i in range(20):
-#    model.fit(trainX, trainY, epochs=1, batch_size=batch_size, verbose=2, shuffle=False)
+#    model.fit(dataX, dataY, epochs=1, batch_size=batch_size, verbose=2, shuffle=False)
 #    model.reset_states()
 
 #ANN model
-#model.add(GRU(30, input_shape=(look_back, 1)))
+#model.add(GRU(50, input_shape=(look_back+8, 1)))
 #model.add(Dense(1))
 #model.compile(loss='mean_squared_error', optimizer='adam', metrics=['accuracy'])
 #model.fit(trainX, trainY, epochs=20, batch_size=batch_size, shuffle=False)
 #print('finished training')
 
 #MLP model
-#model.add(Dense(20, activation='relu', input_dim=trainX.shape[1]))
+#model.add(Dense(20, activation='relu', input_dim=dataX.shape[1]))
 #model.add(Dense(10))
 #model.add(Dense(1))
 #model.compile(loss='mean_squared_error', optimizer='adam')
 #model.fit(trainX, trainY, epochs=100, batch_size=1, verbose=2, shuffle=False)
 
 # make predictions
-#savePkl(model, 'models/lstm.pkl')
-##model = openPkl('models/lstm.pkl')
+#savePkl(model, 'models/gru365.pkl')
+#model = openPkl('models/gru.pkl')
 #trainPredict = model.predict(trainX, batch_size=batch_size)
+#pyplot.plot(trainPredict)
+#pyplot.show()
 #model.reset_states()
 #testPredict = model.predict(testX, batch_size=batch_size)
 
@@ -267,8 +297,7 @@ batch_size = 1
 #trainY = scaler.inverse_transform([trainY])
 #testPredict = scaler.inverse_transform(testPredict)
 #testY = scaler.inverse_transform([testY])
-# calculate root mean squared error
-
+##calculate root mean squared error
 #trainScore = math.sqrt(mean_squared_error(trainY, trainPredict[:,0]))
 #print('Train Score: %.4f RMSE' % (trainScore))
 #testScore = math.sqrt(mean_squared_error(testY, testPredict[:,0]))
@@ -284,53 +313,84 @@ batch_size = 1
 #testPredictPlot[:, :] = np.nan
 #testPredictPlot[len(trainPredict)+(look_back*2)+1:len(dataset)-1, :] = testPredict
 ## plot baseline and predictions
-#pyplot.plot(dataset)
+##pyplot.plot(dataset)
 #pyplot.plot(trainPredictPlot)
 #pyplot.plot(testPredictPlot)
 #pyplot.show()
 
+df = get_data()
+df['date'] = pd.to_datetime(df['date'])
+new_df = df[df['date'].dt.year >= 2021]
 
-dataframe = preprocess_data(get_data())
-old_df = dataframe[dataframe.index >= datetime(2020, 12, 30)]
-print(old_df)
-new_df = old_df[old_df.index.year == 2021].copy()
-new_df['date'] = new_df.index
+
+#dataframe = preprocess_data(get_data())[['day', 'month', 'year', 'temperature', 'vent', 'population', 'holiday', 'season', 'y']]
+#old_df = dataframe[dataframe.index >= datetime(2020, 12, 30)]
+#print(old_df)
+#new_df = old_df[old_df.index.year == 2021].copy()
+#new_df['date'] = new_df.index
 new_df['date'] = new_df['date'].apply(lambda x: x.replace(year = x.year + 1))
-new_df = new_df.set_index(new_df['date'])
-new_df.drop('date', axis=1, inplace=True)
-new_df['y'] = new_df['y'].apply(lambda x: 0)
+new_df = add_hijri_holidays(new_df)
+new_df = preprocess_data(new_df)[['day', 'month', 'year', 'temperature', 'vent', 'population', 'holiday', 'season', 'y']]
 
 print(new_df)
 
-model = openPkl('models/lstm.pkl')
-for index, row in new_df.iterrows():
-    old_df = old_df.append(row, ignore_index=True)
-    print(old_df)
-    new_dataset = old_df['y'].to_numpy()
-    new_dataset = new_dataset.astype('float32')
-    # normalize the dataset
-    scaler = MinMaxScaler(feature_range=(0, 1))
-    new_dataset = scaler.fit_transform(new_dataset.reshape(-1, 1))
+model = openPkl('models/lstmexog.pkl')
 
-    new_datasetX, new_datasetY = create_dataset(new_dataset, 365)
-    new_datasetX = np.reshape(new_datasetX, (new_datasetX.shape[0], new_datasetX.shape[1], 1))
-    print(new_datasetX)
-    size = new_datasetX.shape[0]
-    last_row = [new_datasetX[size-1, :]]
-    
-    y_pred = model.predict(last_row, batch_size=batch_size)
-    predicted = scaler.inverse_transform(y_pred)
-    print(predicted)
-    old_df.iloc[-1, old_df.columns.get_loc('y')] = predicted[0]
-    
-print(old_df)
-predicted_year = old_df[old_df.index > 364]['y'].to_numpy()
-print(predicted_year)
-old_data = old_df[old_df.index < 365]['y'].to_numpy()
-print(old_data)
-pyplot.plot(old_data)
-pyplot.plot(predicted_year)
+new_dataset = new_df.to_numpy()
+new_dataset = new_dataset.astype('float32')
+# normalize the dataset
+scaler = MinMaxScaler(feature_range=(0, 1))
+new_dataset = scaler.fit_transform(new_dataset)
+new_datasetX, new_datasetY = create_dataset(new_dataset, 3)
+new_datasetX = np.reshape(new_datasetX, (new_datasetX.shape[0], new_datasetX.shape[1], 1))
+y_pred = model.predict(new_datasetX[0:50, :], batch_size=batch_size)
+pyplot.plot(new_datasetY)
+pyplot.plot(y_pred)
 pyplot.show()
+
+#new_df = new_df.set_index(new_df['date'])
+#new_df.drop('date', axis=1, inplace=True)
+#new_df['y'] = new_df['y'].apply(lambda x: 0)
+#
+#print(new_df)
+#
+#scale_array = old_df['y'].to_numpy()
+#scaler2 = MinMaxScaler()
+#test = scaler2.fit_transform(scale_array.reshape(-1, 1))
+#
+#model = openPkl('models/lstmexog.pkl')
+#i = 1
+#for index, row in new_df.iterrows():
+#    old_df = old_df.append(row, ignore_index=True)
+#    print(old_df)
+#    new_dataset = old_df.to_numpy()
+#    new_dataset = new_dataset.astype('float32')
+#    # normalize the dataset
+#    scaler = MinMaxScaler(feature_range=(0, 1))
+#    new_dataset = scaler.fit_transform(new_dataset)
+#    print(new_dataset)
+#    print("dagi")
+#    new_datasetX, new_datasetY = create_dataset(new_dataset, 365)
+#    new_datasetX = np.reshape(new_datasetX, (new_datasetX.shape[0], new_datasetX.shape[1], 1))
+#    size = new_datasetX.shape[0]
+#    print("dataset created")
+#    last_row = new_datasetX[size-1]
+#    print(last_row)
+#    print(dataX)
+#    y_pred = model.predict(last_row, batch_size=batch_size)
+#    model.reset_states()
+#    predicted = scaler2.inverse_transform(y_pred)
+#    #print(predicted)
+#    old_df.iloc[-1, old_df.columns.get_loc('y')] = predicted[0]
+#    
+#print(old_df)
+#predicted_year = old_df[old_df.index > 364]['y'].to_numpy()
+#print(predicted_year)
+#old_data = old_df[old_df.index < 365]['y'].to_numpy()
+#print(old_data)
+#pyplot.plot(old_data)
+#pyplot.plot(predicted)
+#pyplot.show()
             
     
     
