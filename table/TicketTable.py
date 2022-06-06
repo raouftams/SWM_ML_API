@@ -1,5 +1,5 @@
 from table.Table import Table
-
+import pandas as pd
 class TicketTable(Table):
 
     def __init__(self) -> None:
@@ -49,6 +49,11 @@ class TicketTable(Table):
             if result != []:
                 return result
         return None
+
+    #get all towns waste quantity by hour for given year and month
+    def get_all_towns_waste_year_month(self, year, month, db_connection):
+        sql = 'select sum(t.net)/1000 as waste_qte, t.heure from ticket t  where Extract(Year from t.date) = {} and Extract(Month from t.date) = {} group by t.heure'.format(year, month)
+        return pd.read_sql_query(sql, db_connection)
 
     #get total waste quantity  
     def get_total_waste(self, db_connection):

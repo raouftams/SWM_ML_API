@@ -1,5 +1,5 @@
 from table.Table import Table
-
+import pandas as pd
 class VehicleTable(Table):
 
     def __init__(self) -> None:
@@ -117,3 +117,12 @@ class VehicleTable(Table):
             if result != []:
                 return result
         return None
+
+    def get_efficiency_by_mark_year_month(self, year, month, db_connection):
+        sql = 'select v.marque, v.code, avg(t.net/(v.volume*1000)) as compact_rate from vehicle v, ticket t, rotation r  where t.code = r.code_ticket and t.date = r.date and r.id_vehicle = v.code and v.volume != 0  and Extract(Year from t.date) = {} and Extract(Month from t.date) = {} group by (v.marque, v.code)'.format(year, month)
+        return pd.read_sql_query(sql, db_connection)
+    
+
+    def get_efficiency_by_volume_year_month(self, year, month, db_connection):
+        sql = 'select v.volume, v.code, avg(t.net/(v.volume*1000)) as compact_rate from vehicle v, ticket t, rotation r  where t.code = r.code_ticket and t.date = r.date and r.id_vehicle = v.code and v.volume != 0  and Extract(Year from t.date) = {} and Extract(Month from t.date) = {} group by (v.volume, v.code)'.format(year, month)
+        return pd.read_sql_query(sql, db_connection)

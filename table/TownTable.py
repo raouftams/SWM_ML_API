@@ -134,6 +134,35 @@ class TownTable(Table):
                 return result
         return None
 
+    def get_population_year(self, year, db_connection):
+        if db_connection != None:
+            #create cursor
+            cursor = db_connection.cursor()
+            #execute query
+            sql = 'select sum(pop2016) from commune'
+            if(year == 2017):
+                sql = 'select sum(pop2017) from commune'
+            if(year == 2018):
+                sql = 'select sum(pop2018) from commune'
+            if(year == 2019):
+                sql = 'select sum(2019) from commune'
+            if(year == 2020):
+                sql = 'select sum(pop2020) from commune'
+            if(year == 2021):
+                sql = 'select sum(pop2021) from commune'
+            if(year == 2022):
+                sql = 'select sum(pop2022) from commune'
+
+            cursor.execute(sql)
+            #get result
+            result = cursor.fetchone()
+            #close cursor
+            cursor.close()
+            #check if result is empty
+            if result != []:
+                return result
+        return None
+
     #check if town name exists
     def exists_name(self, name, db_connection):
         """
