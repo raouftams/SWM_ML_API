@@ -92,10 +92,45 @@ def get_wind_speed(date, town):
     except:
         return np.nan()
 
+def get_wind_dir(date, town):
+    #transform date to str format 'yyyy-mm-dd'
+    date_str = date.strftime("%Y-%m-%d")
+    #read weather data from pickle file
+    data_dict = openPkl('data/weather_data.pkl')
+    try:
+        return data_dict[town].loc[date_str]['wdir'] 
+    except:
+        return np.nan()
+
+
+def get_pressure(date, town):
+    #transform date to str format 'yyyy-mm-dd'
+    date_str = date.strftime("%Y-%m-%d")
+    #read weather data from pickle file
+    data_dict = openPkl('data/weather_data.pkl')
+    try:
+        return data_dict[town].loc[date_str]['pres'] 
+    except:
+        return np.nan()
+
+def get_daily_precipitation(date, town):
+    #transform date to str format 'yyyy-mm-dd'
+    date_str = date.strftime("%Y-%m-%d")
+    #read weather data from pickle file
+    data_dict = openPkl('data/weather_data.pkl')
+    try:
+        return data_dict[town].loc[date_str]['prcp'] 
+    except:
+        return np.nan()
+
 #this function adds weather data to our dataframe
 def add_weather_to_data(df):
     df['temperature'] = df.swifter.apply(lambda row: get_temperature(row['date'], row['code_town']), axis=1)
     df['vent'] = df.swifter.apply(lambda row: get_wind_speed(row['date'], row['code_town']), axis=1)
+    df['wind_dir'] = df.swifter.apply(lambda row: get_wind_dir(row['date'], row['code_town']), axis=1)
+    df['pressure'] = df.swifter.apply(lambda row: get_pressure(row['date'], row['code_town']), axis=1)
+    df['rain'] = df.swifter.apply(lambda row: get_daily_precipitation(row['date'], row['code_town']), axis=1)
+    
     return df
 
 #this function gets a hijri data and returns an islamic holiday 
@@ -184,6 +219,7 @@ def get_data():
     return pd.read_pickle("data/final_data.pkl")
 
 
+#get_transform_data()
 #df = pd.read_pickle("data/final_data.pkl")
 #df = add_days(df)
 #print(df)
