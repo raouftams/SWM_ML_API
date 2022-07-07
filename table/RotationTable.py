@@ -220,6 +220,17 @@ class RotationTable(Table):
     def get_info_by_year_month_all_towns(self, year, month, db_connection):
         sql = 'select  count(r.*)/30 as nb_rotations_day, count(r.*) as nb_rotations, count(distinct(r.id_vehicle)) as nb_vehicles,  sum(t.net)/1000 as waste_qte,  (sum(t.net)/30)/1000 as waste_qte_day, avg((t.net/(v.volume*1000))) as compact_rate from rotation r, ticket t, commune c, vehicle v  where v.code = r.id_vehicle and v.volume != 0 and c.code = r.code_town and t.code = r.code_ticket  and t.date = r.date and Extract(Year from r.date) = {} and Extract(Month from r.date) = {}'.format(year, month)
         return pd.read_sql_query(sql, db_connection)
+    
+
+    #get information by year and month for given town
+    def get_info_by_year_month_town(self, code, year, month, db_connection):
+        sql = "select  count(r.*)/30 as nb_rotations_day, count(r.*) as nb_rotations, count(distinct(r.id_vehicle)) as nb_vehicles,  sum(t.net)/1000 as waste_qte,  (sum(t.net)/30)/1000 as waste_qte_day, avg((t.net/(v.volume*1000))) as compact_rate from rotation r, ticket t, vehicle v  where r.code_town = '{}' and v.code = r.id_vehicle and v.volume != 0 and t.code = r.code_ticket  and t.date = r.date and Extract(Year from r.date) = {} and Extract(Month from r.date) = {}".format(code, year, month)
+        return pd.read_sql_query(sql, db_connection)
+    
+    #get information by year and month for given unity
+    def get_info_by_year_month_unity(self, code, year, month, db_connection):
+        sql = "select  count(r.*)/30 as nb_rotations_day, count(r.*) as nb_rotations, count(distinct(r.id_vehicle)) as nb_vehicles,  sum(t.net)/1000 as waste_qte,  (sum(t.net)/30)/1000 as waste_qte_day, avg((t.net/(v.volume*1000))) as compact_rate from rotation r, ticket t, commune c, vehicle v  where c.code = r.code_town and c.code_unity = '{}' and v.code = r.id_vehicle and v.volume != 0 and t.code = r.code_ticket  and t.date = r.date and Extract(Year from r.date) = {} and Extract(Month from r.date) = {}".format(code, year, month)
+        return pd.read_sql_query(sql, db_connection)
 
     def exists(self, id, db_connection):
         """

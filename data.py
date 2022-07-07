@@ -202,7 +202,7 @@ def get_rotations_by_hour():
     return pd.read_sql_query(sql, DB_CONNECTION)
 
 def get_efficiency_by_hour():
-    sql = "select r.code_town, r.heure, c.code_unity, (t.net/1000)/v.volume as compact_rate from rotation r, commune c, vehicle v, ticket t where r.date >= '2021-01-01' and r.code_town = c.code and v.code = r.id_vehicle and v.volume != 0 and t.code = r.code_ticket and t.cet = r.cet and t.date = t.date"
+    sql = "select r.code_town, r.heure, c.code_unity, (t.net/1000)/v.volume as compact_rate from rotation r, commune c, vehicle v, ticket t where r.date >= '2021-01-01' and r.code_town = c.code and v.code = r.id_vehicle and v.volume != 0 and t.code = r.code_ticket and t.cet = r.cet and t.date = r.date"
     return pd.read_sql_query(sql, DB_CONNECTION)
 
 def get_transform_data():

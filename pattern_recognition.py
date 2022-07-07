@@ -2,7 +2,7 @@ import datetime as dt
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.preprocessing import LabelEncoder, StandardScaler, normalize
+from sklearn.preprocessing import LabelEncoder, StandardScaler, MinMaxScaler
 from sklearn.metrics import ConfusionMatrixDisplay, RocCurveDisplay, classification_report
 from sklearn.model_selection import train_test_split
 from sklearn.svm import SVC
@@ -288,6 +288,24 @@ def plot_data(df):
     #print(rules)
 
 """---------- waste quantity --------------"""
+#add predictions to trend
+def all_towns_trend_prediction(period: int):
+    df = get_data()
+    #get predictions
+    predictions = pd.read_pickle('predictions/predictions_df_2022.pkl')
+    predictions['net'] = predictions['net'].apply(lambda x: x*1000)
+    #group data by date
+    df["net"] = df.groupby(by='date')["net"].transform('sum')
+    df.drop_duplicates(subset='date', inplace=True)
+    df = df[['date', 'net']]
+    
+    new_df = pd.concat([df, predictions], ignore_index=True)
+    
+    trend_df = data_trend(new_df, "net", model='additive', period=period).to_frame("values")
+
+    return trend_df
+
+
 def trend_by_town(period: int):
     df = get_data()
     #group data by town and date
@@ -443,16 +461,17 @@ def week_clustering():
 
 def kmeans_towns_trends():
     #extract monthly data trend for each town 
-    trends = trend_by_town(30)
+    trends = trend_by_town(365)
     #df = get_data()
     #df = df[df["code_town"] != 'S001']
     #df['date'] = pd.to_datetime(df['date'])    
     #df['net'] = df.groupby(by=['date', 'code_town'])['net'].transform('sum')
     #df.drop_duplicates(subset=['code_town', 'date'], inplace=True)
     #
-    #df['week'] = df.apply(lambda row: row['date'] - dt.timedelta(days=row['date'].weekday()), axis=1)
-    #df['net'] = df.groupby(['week', 'code_town'])['net'].transform('sum')
-    #df.drop_duplicates(subset=['week', 'code_town'], inplace=True)
+    ##df['week'] = df.apply(lambda row: row['date'] - dt.timedelta(days=row['date'].weekday()), axis=1)
+    #df['month'] = df.apply(lambda row: row['date'].month, axis=1)
+    #df['net'] = df.groupby(['year', 'code_town'])['net'].transform('sum')
+    #df.drop_duplicates(subset=['year', 'code_town'], inplace=True)
     #
     ##sort data by date
     #df.sort_values(by='date', ascending=True, inplace=True)
@@ -461,57 +480,56 @@ def kmeans_towns_trends():
     #df["y"] = df['net']/1000
     #df['y'] = df['y'].astype(int)
     ###group data
-    ###df['y'] = df.groupby(['date', 'code_town'])['y'].transform('sum')
-    ###df = df.drop_duplicates(subset=['date', 'code_town'])
-    ###df = df.asfreq('W')
-    ###df.fillna(0, inplace=True)
+    ##df['y'] = df.groupby(['date', 'code_town'])['y'].transform('sum')
+    ##df = df.drop_duplicates(subset=['date', 'code_town'])
+    ##df = df.asfreq('W')
+    ##df.fillna(0, inplace=True)
     #df['net'].fillna(df['net'].mean(), axis=0, inplace=True)
-    #
-    #print(df)
+    
     #towns = np.unique(df['code_town'].to_numpy())
-    #
+    
     #trends = {}
     #for town in towns:
     #    if town != "S001":
     #        town_df = df.loc[df["code_town"] == town]
-    #        trend_df = data_trend(town_df.copy(), "net", model="additive", period=1).to_frame("values")
+    #        trend_df = data_trend(town_df.copy(), "net", model="additive", period=1)
     #        trends[town] = trend_df
-    #
-    #print(trends)
-#
-#
+
+
     ###transform and normalize data
     ##trends = trend_by_town(365)
     array = []
     for key in trends.keys():
-        if(key != 'C029'):
-            town_df = trends[key]
-            array.append(StandardScaler().fit_transform(town_df)[:,0].flatten())
+      if(key != 'C029'):
+        town_df = trends[key]
+        town_array = MinMaxScaler().fit_transform(town_df.to_numpy().reshape(-1, 1))
+        array.append(town_array.flatten())
+
 
     ##merge data
     X_train = np.vstack(array)
     scores = []
     for i in range (2, 3):    
         #initilize model
-        model = TimeSeriesKMeans(n_clusters=4, metric="softdtw", n_init=20, max_iter=10)
+        model = TimeSeriesKMeans(n_clusters=2, metric="dtw", max_iter=10)
         #fit and predict
         y_pred = model.fit_predict(X_train)
         #save model to pkl file
-        model.to_pickle("models/kmeans_time_series_month_4.pkl")
+        #model.to_pickle("models/kmeans_time_series_month_4.pkl")
         #model = TimeSeriesKMeans.from_pickle("models/kmeans_time_series_week.pkl")
         #y_pred = model.predict(X_train)
-        town_pred = {}
-        for i in range(31):
-            if i+1 < 10:
-                town_pred["C00"+str(i+1)] = y_pred[i]
-            else:
-                town_pred["C0"+str(i+1)] = y_pred[i]
+        #town_pred = {}
+        #for i in range(31):
+        #    if i+1 < 10:
+        #        town_pred["C00"+str(i+1)] = y_pred[i]
+        #    else:
+        #        town_pred["C0"+str(i+1)] = y_pred[i]
 
-        savePkl(town_pred, "models/month_cluster4.pkl")
+        #savePkl(town_pred, "models/month_cluster4.pkl")
         #print(town_pred)
         #plot model results
         sz = X_train.shape[1]
-        for yi in range(4):
+        for yi in range(2):
             plt.subplot(3, 3, 4 + yi)
             for xx in X_train[y_pred == yi]:
                 plt.plot(xx.ravel(), "k-", alpha=.2)
@@ -523,7 +541,8 @@ def kmeans_towns_trends():
                 plt.title("DTW $k$-means")
         plt.show()
     
-        score = silhouette_score(X_train, y_pred, metric='softdtw')
+        score = silhouette_score(X_train, y_pred, metric='dtw')
+        print(i)
         print(score)
 
     #scores.append(score)
@@ -634,9 +653,12 @@ def rotations_trend_by_unity_hour(unity):
     return unity_df
 
 def rotations_trend_by_hour():
+    print("getting")
     df = get_rotations_by_hour()
     df['heure'] = pd.to_datetime(df['heure'])
+    print("begin")
     df['heure'] = df['heure'].apply(lambda x: x.replace(minute=0, second=0))
+    print("end")
     df['rotations'] = df.groupby(by='heure')['rotations'].transform('mean')
     df.drop_duplicates(subset='heure', inplace=True)
     df['heure'] = df['heure'].dt.time
@@ -646,10 +668,12 @@ def rotations_trend_by_hour():
     return df
 
 def compact_rate_trend_hour():
+    print("getting data")
     df = get_efficiency_by_hour()
-
+    print('begin')
     df['heure'] = pd.to_datetime(df['heure'])
     df['heure'] = df['heure'].apply(lambda x: x.replace(minute=0, second=0))
+    print("end")
     df['compact_rate'] = df.groupby(by='heure')['compact_rate'].transform('mean')
     df.drop_duplicates(subset='heure', inplace=True)
     df['heure'] = df['heure'].dt.time
@@ -755,8 +779,16 @@ def compact_rate_trend_unity_hour(unity):
 ##axis[0,0].set_title('Quantité de déchets')
 ##axis[1,0].plot(data_trend(df.copy(), 'population',model='additive', period=365).to_frame('values')['values'])
 ##axis[1,0].set_title('Population')
-#
-#seasonal_decompose(df["y"], period=1).plot()
+#df = get_data()
+#df["net"] = df.groupby(by='date')["net"].transform('sum')
+#df.drop_duplicates(subset='date', inplace=True)
+#df['date'] = pd.to_datetime(df['date'])
+#df.set_index('date', inplace=True)
+#df.sort_index(inplace=True)
+##create a copy for the analysis
+#analysis = df[["net"]].copy()
+#seasonal_decompose(analysis, model="additive", period=365, extrapolate_trend='freq').plot()
+#plt.show()
 #plt.plot(df['y'])
 #plt.title('Quantité de déchets (tonne)')
 #plt.show()

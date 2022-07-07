@@ -108,12 +108,13 @@ def get_trend_by_town_year(town, period, year):
 #get waste generation trend for all towns
 @router.get(path="/stats/all-towns/trend/{period}")
 def get_trend(period):
+    predictions = pd.read_pickle("predictions/predictions_df_2022.pkl")
     if period == 'year':
-        data = all_towns_trend(365)
+        data = all_towns_trend_prediction(365)
     if period == 'day':
-        data = all_towns_trend(1)
+        data = all_towns_trend_prediction(1)
     if period == 'month':
-        data = all_towns_trend(30)
+        data = all_towns_trend_prediction(30)
 
     #selecting the town
     #data.index = data.index.strftime('%d-%m-%y')
@@ -191,10 +192,8 @@ def get_seasonality(period):
     if period == 'month':
         data = all_towns_seasonality(30)
 
-    #selecting the town
-    data.index = data.index.strftime('%d-%m-%y')
     json_data ={
-        "labels": data.index.to_numpy(),
+        "labels": data.index.astype(str).to_numpy(),
         "values": data["values"].to_numpy()
     } 
 
@@ -213,9 +212,8 @@ def get_seasonality_by_town(town, period):
 
     #selecting the town
     town_data = data[town]
-    town_data.index = town_data.index.strftime('%d-%m-%y')
     json_data ={
-        "labels": town_data.index.to_numpy(),
+        "labels": town_data.index.astype(str).to_numpy(),
         "values": town_data["values"].to_numpy()
     } 
 
@@ -234,9 +232,8 @@ def get_seasonality_by_unity(code, period):
 
     #selecting the town
     town_data = data[code]
-    town_data.index = town_data.index.strftime('%d-%m-%y')
     json_data ={
-        "labels": town_data.index.to_numpy(),
+        "labels": town_data.index.astype(str).to_numpy(),
         "values": town_data["values"].to_numpy()
     } 
 
@@ -254,10 +251,9 @@ def get_rotations_trend(period):
     if period == 'month':
         data = rotations_trend(30)
 
-    #selecting the town
-    data.index = data.index.strftime('%d-%m-%y')
+    
     json_data ={
-        "labels": data.index.to_numpy(),
+        "labels": data.index.astype(str).to_numpy(),
         "values": data["values"].to_numpy()
     } 
 
@@ -273,10 +269,8 @@ def get_rotations_trend_year(period, year):
     if period == 'month':
         data = rotations_trend_year(30, int(year))
 
-    #selecting the town
-    data.index = data.index.strftime('%d-%m-%y')
     json_data ={
-        "labels": data.index.to_numpy(),
+        "labels": data.index.astype(str).to_numpy(),
         "values": data["values"].to_numpy()
     } 
 
@@ -295,9 +289,8 @@ def get_rotations_trend_by_town(town, period):
 
     #selecting the town
     town_data = data[town]
-    town_data.index = town_data.index.strftime('%d-%m-%y')
     json_data ={
-        "labels": town_data.index.to_numpy(),
+        "labels": town_data.index.astype(str).to_numpy(),
         "values": town_data["values"].to_numpy()
     } 
 
@@ -314,9 +307,8 @@ def get_rotations_trend_by_town_year(town, period, year):
     if period == 'month':
         data = rotations_trend_by_town_year(town, 30, int(year))
 
-    data.index = data.index.strftime('%d-%m-%y')
     json_data ={
-        "labels": data.index.to_numpy(),
+        "labels": data.index.astype(str).to_numpy(),
         "values": data["values"].to_numpy()
     } 
 
@@ -335,9 +327,8 @@ def get_rotations_trend_by_unity(code, period):
 
     #selecting the unity df
     df = data[code]
-    df.index = df.index.strftime('%d-%m-%y')
     json_data = {
-        "labels": df.index.to_numpy(),
+        "labels": df.index.astype(str).to_numpy(),
         "values": df["values"].to_numpy()
     } 
 
@@ -354,9 +345,8 @@ def get_rotations_trend_by_unity_year(unity, period, year):
     if period == 'month':
         data = rotations_trend_by_unity_year(unity, 30, int(year))
 
-    data.index = data.index.strftime('%d-%m-%y')
     json_data ={
-        "labels": data.index.to_numpy(),
+        "labels": data.index.astype(str).to_numpy(),
         "values": data["values"].to_numpy()
     } 
 
@@ -366,16 +356,16 @@ def get_rotations_trend_by_unity_year(unity, period, year):
 @router.get(path="/stats/rotations/trend/all-towns/hour")
 def get_rotations_trend_hour():
     data = rotations_trend_by_hour()
-    compact_rate_data = compact_rate_trend_hour()
+    #compact_rate_data = compact_rate_trend_hour()
     json_data ={
         "rotations":{
             "labels": data['heure'].astype(str).to_numpy(),
             "values": data["rotations"].to_numpy()   
         },
-        "compact_rate":{
-            "labels": compact_rate_data['heure'].astype(str).to_numpy(),
-            "values": compact_rate_data["compact_rate"].to_numpy()
-        }
+        #"compact_rate":{
+        #    "labels": compact_rate_data['heure'].astype(str).to_numpy(),
+        #    "values": compact_rate_data["compact_rate"].to_numpy()
+        #}
     } 
 
     return json.dumps(json_data, cls=NumpyArrayEncoder)
@@ -395,16 +385,16 @@ def get_compact_rate_hour():
 @router.get(path="/stats/rotations/trend/hour/town/{town}")
 def get_rotations_trend_by_town_hour(town):
     data = rotations_trend_by_town_hour(town)
-    compact_rate_data = compact_rate_trend_town_hour(town)
+    #compact_rate_data = compact_rate_trend_town_hour(town)
     json_data ={
         "rotations":{
             "labels": data['heure'].astype(str).to_numpy(),
             "values": data["rotations"].to_numpy()   
         },
-        "compact_rate":{
-            "labels": compact_rate_data['heure'].astype(str).to_numpy(),
-            "values": compact_rate_data["compact_rate"].to_numpy()
-        }
+        #"compact_rate":{
+        #    "labels": compact_rate_data['heure'].astype(str).to_numpy(),
+        #    "values": compact_rate_data["compact_rate"].to_numpy()
+        #}
     } 
 
     return json.dumps(json_data, cls=NumpyArrayEncoder)
@@ -568,6 +558,7 @@ def get_all_towns_info_year_month(year, month):
     town_table = TownTable()
     population = town_table.get_population_year(year, db_connection)
     data = rotation_table.get_info_by_year_month_all_towns(year, month, db_connection)
+    data.fillna(0, axis=0, inplace=True)
     json_data = {
         "nb_rotations_day": data['nb_rotations_day'].to_numpy()[0],
         "nb_rotations": data['nb_rotations'].to_numpy()[0],
@@ -590,6 +581,7 @@ def get_vehicles_mark_efficiency_year_month(year, month):
     data.drop_duplicates('marque', inplace=True)
     data = data[data['marque'] != 'nan']
     data.sort_values(by='compact_rate', ascending=False, inplace=True)
+    data.dropna(axis=0, inplace=True)
     json_data = {
         "labels": data['marque'].to_numpy(),
         "values": data['compact_rate'].to_numpy()
@@ -607,7 +599,7 @@ def get_vehicles_volume_efficiency_year_month(year, month):
     data.drop_duplicates('volume', inplace=True)
     data = data[data['volume'] != 0]
     data.sort_values(by='compact_rate', ascending=False, inplace=True)
-    
+    data.dropna(axis=0, inplace=True)
     json_data = {
         "labels": data['volume'].astype(str).to_numpy(),
         "values": data['compact_rate'].to_numpy()
@@ -625,8 +617,215 @@ def get_all_towns_hour_waste_trend_year_month(year, month):
     data['waste_qte'] = data.groupby(by='heure')['waste_qte'].transform('sum')
     data.drop_duplicates(subset='heure', inplace=True)
     data.sort_values(by='heure', ascending=True, inplace=True)
+    data.dropna(axis=0, inplace=True)
     json_data = {
         "labels": data['heure'].astype(str).to_numpy(),
+        "values": data['waste_qte'].to_numpy()
+    }
+
+    return json.dumps(json_data, cls=NumpyArrayEncoder)
+
+
+"""------------------- stats by town and unity ------------------"""
+#get stats for a given town by year and month
+@router.get(path="/statistics/town/{code}/info/{year}/{month}")
+def get_all_towns_info_year_month(code, year, month):
+    rotation_table = RotationTable()
+    town_table = TownTable()
+    population = town_table.get_population_year_town(code, year, db_connection)
+    data = rotation_table.get_info_by_year_month_town(code, year, month, db_connection)
+    data.fillna(0, axis=0, inplace=True)
+    json_data = {
+        "nb_rotations_day": data['nb_rotations_day'].to_numpy()[0],
+        "nb_rotations": data['nb_rotations'].to_numpy()[0],
+        "nb_vehicles": data['nb_vehicles'].to_numpy()[0],
+        "waste_qte": data['waste_qte'].to_numpy()[0],
+        "waste_qte_day": data['waste_qte_day'].to_numpy()[0],
+        "compact_rate": data['compact_rate'].to_numpy()[0],
+        "ratio": data['waste_qte_day'].to_numpy()[0]*1000/float(population[0])
+    }
+
+    return json.dumps(json_data, cls=NumpyArrayEncoder)
+
+#get stats for a given unity by year and month
+@router.get(path="/statistics/unity/{code}/info/{year}/{month}")
+def get_all_towns_info_year_month(code, year, month):
+    rotation_table = RotationTable()
+    town_table = TownTable()
+    population = town_table.get_population_year_unity(code, year, db_connection)
+    data = rotation_table.get_info_by_year_month_unity(code, year, month, db_connection)
+    data.fillna(0, axis=0, inplace=True)
+    json_data = {
+        "nb_rotations_day": data['nb_rotations_day'].to_numpy()[0],
+        "nb_rotations": data['nb_rotations'].to_numpy()[0],
+        "nb_vehicles": data['nb_vehicles'].to_numpy()[0],
+        "waste_qte": data['waste_qte'].to_numpy()[0],
+        "waste_qte_day": data['waste_qte_day'].to_numpy()[0],
+        "compact_rate": data['compact_rate'].to_numpy()[0],
+        "ratio": data['waste_qte_day'].to_numpy()[0]*1000/float(population[0])
+    }
+
+    return json.dumps(json_data, cls=NumpyArrayEncoder)
+
+#get efficiency by vehicle mark, year and month for given town
+@router.get(path="/statistics/town/{code}/vehicle-efficiency-mark/{year}/{month}")
+def get_vehicles_mark_efficiency_year_month_town(code, year, month):
+    vehicle_table = VehicleTable()
+    data = vehicle_table.get_efficiency_by_mark_year_month_town(code, year, month, db_connection)
+    data['compact_rate'] = data.groupby('marque')['compact_rate'].transform('mean')
+    data.drop_duplicates('marque', inplace=True)
+    data = data[data['marque'] != 'nan']
+    data.sort_values(by='compact_rate', ascending=False, inplace=True)
+    data.dropna(axis=0, inplace=True)
+    json_data = {
+        "labels": data['marque'].to_numpy(),
+        "values": data['compact_rate'].to_numpy()
+    }
+
+    return json.dumps(json_data, cls=NumpyArrayEncoder)
+
+#get efficiency by vehicle mark, year and month for given unity
+@router.get(path="/statistics/unity/{code}/vehicle-efficiency-mark/{year}/{month}")
+def get_vehicles_mark_efficiency_year_month_unity(code, year, month):
+    vehicle_table = VehicleTable()
+    data = vehicle_table.get_efficiency_by_mark_year_month_unity(code, year, month, db_connection)
+    data['compact_rate'] = data.groupby('marque')['compact_rate'].transform('mean')
+    data.drop_duplicates('marque', inplace=True)
+    data = data[data['marque'] != 'nan']
+    data.sort_values(by='compact_rate', ascending=False, inplace=True)
+    data.dropna(axis=0, inplace=True)
+    json_data = {
+        "labels": data['marque'].to_numpy(),
+        "values": data['compact_rate'].to_numpy()
+    }
+
+    return json.dumps(json_data, cls=NumpyArrayEncoder)
+
+#get efficiency by vehicle volume, year and month for a given town
+@router.get(path="/statistics/town/{code}/vehicle-efficiency-volume/{year}/{month}")
+def get_vehicles_volume_efficiency_year_month_town(code, year, month):
+    vehicle_table = VehicleTable()
+    data = vehicle_table.get_efficiency_by_volume_year_month_town(code, year, month, db_connection)
+    data['compact_rate'] = data.groupby('volume')['compact_rate'].transform('mean')
+    data.drop_duplicates('volume', inplace=True)
+    data = data[data['volume'] != 0]
+    data.sort_values(by='compact_rate', ascending=False, inplace=True)
+    data.dropna(axis=0, inplace=True)
+    json_data = {
+        "labels": data['volume'].astype(str).to_numpy(),
+        "values": data['compact_rate'].to_numpy()
+    }
+
+    return json.dumps(json_data, cls=NumpyArrayEncoder)
+
+#get efficiency by vehicle volume, year and month for a given unity
+@router.get(path="/statistics/unity/{code}/vehicle-efficiency-volume/{year}/{month}")
+def get_vehicles_volume_efficiency_year_month_unity(code, year, month):
+    vehicle_table = VehicleTable()
+    data = vehicle_table.get_efficiency_by_volume_year_month_unity(code, year, month, db_connection)
+    data['compact_rate'] = data.groupby('volume')['compact_rate'].transform('mean')
+    data.drop_duplicates('volume', inplace=True)
+    data = data[data['volume'] != 0]
+    data.sort_values(by='compact_rate', ascending=False, inplace=True)
+    data.dropna(axis=0, inplace=True)
+    json_data = {
+        "labels": data['volume'].astype(str).to_numpy(),
+        "values": data['compact_rate'].to_numpy()
+    }
+
+    return json.dumps(json_data, cls=NumpyArrayEncoder)
+
+#get hour waste trend by year and month for a given town
+@router.get(path="/statistics/town/{code}/waste-trend-hour/{year}/{month}")
+def get_all_towns_hour_waste_trend_year_month_town(code, year, month):
+    ticket_table = TicketTable()
+    data = ticket_table.get_all_towns_waste_year_month_town(code, year, month, db_connection)
+    data['heure'] = pd.to_datetime(data['heure'])
+    data['heure'] = data['heure'].apply(lambda x: x.replace(minute=0, second=0))
+    data['waste_qte'] = data.groupby(by='heure')['waste_qte'].transform('sum')
+    data.drop_duplicates(subset='heure', inplace=True)
+    data.sort_values(by='heure', ascending=True, inplace=True)
+    data.dropna(axis=0, inplace=True)
+    json_data = {
+        "labels": data['heure'].astype(str).to_numpy(),
+        "values": data['waste_qte'].to_numpy()
+    }
+
+    return json.dumps(json_data, cls=NumpyArrayEncoder)
+
+#get hour waste trend by year and month for a given town
+@router.get(path="/statistics/unity/{code}/waste-trend-hour/{year}/{month}")
+def get_all_towns_hour_waste_trend_year_month_unity(code, year, month):
+    ticket_table = TicketTable()
+    data = ticket_table.get_all_towns_waste_year_month_unity(code, year, month, db_connection)
+    data['heure'] = pd.to_datetime(data['heure'])
+    data['heure'] = data['heure'].apply(lambda x: x.replace(minute=0, second=0))
+    data['waste_qte'] = data.groupby(by='heure')['waste_qte'].transform('sum')
+    data.drop_duplicates(subset='heure', inplace=True)
+    data.sort_values(by='heure', ascending=True, inplace=True)
+    data.dropna(axis=0, inplace=True)
+    json_data = {
+        "labels": data['heure'].astype(str).to_numpy(),
+        "values": data['waste_qte'].to_numpy()
+    }
+
+    return json.dumps(json_data, cls=NumpyArrayEncoder)
+
+
+
+#get waste quantity by day of week for given  year and month  
+@router.get(path="/statistics/all-towns/waste-quantity-day/{year}/{month}")
+def get_all_towns_day_waste_year_month_all_towns(year, month):
+    ticket_table = TicketTable()
+    data = ticket_table.get_all_towns_waste_year_month_days(year, month, db_connection)
+    data['waste_qte'] = data.groupby(by='day')['waste_qte'].transform('mean')
+    data.drop_duplicates(subset='day', inplace=True)
+    data.sort_values(by='day', ascending=True, inplace=True)
+    data.dropna(axis=0, inplace=True)
+    days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+    data['day'] = data['day'].astype(int)
+    data['day'] = data['day'].apply(lambda x: days[x-1])
+    json_data = {
+        "labels": data['day'].astype(str).to_numpy(),
+        "values": data['waste_qte'].to_numpy()
+    }
+
+    return json.dumps(json_data, cls=NumpyArrayEncoder)
+
+
+#get waste quantity by day of week for given  year and month  and town
+@router.get(path="/statistics/town/{code}/waste-quantity-day/{year}/{month}")
+def get_day_waste_year_month_town(code, year, month):
+    ticket_table = TicketTable()
+    data = ticket_table.get_waste_year_month_days_town(code, year, month, db_connection)
+    data['waste_qte'] = data.groupby(by='day')['waste_qte'].transform('mean')
+    data.drop_duplicates(subset='day', inplace=True)
+    data.sort_values(by='day', ascending=True, inplace=True)
+    data.dropna(axis=0, inplace=True)
+    days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+    data['day'] = data['day'].astype(int)
+    data['day'] = data['day'].apply(lambda x: days[x-1])
+    json_data = {
+        "labels": data['day'].astype(str).to_numpy(),
+        "values": data['waste_qte'].to_numpy()
+    }
+
+    return json.dumps(json_data, cls=NumpyArrayEncoder)
+
+#get waste quantity by day of week for given  year and month  and town
+@router.get(path="/statistics/unity/{code}/waste-quantity-day/{year}/{month}")
+def get_day_waste_year_month_unity(code, year, month):
+    ticket_table = TicketTable()
+    data = ticket_table.get_waste_year_month_days_unity(code, year, month, db_connection)
+    data['waste_qte'] = data.groupby(by='day')['waste_qte'].transform('mean')
+    data.drop_duplicates(subset='day', inplace=True)
+    data.sort_values(by='day', ascending=True, inplace=True)
+    data.dropna(axis=0, inplace=True)
+    days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+    data['day'] = data['day'].astype(int)
+    data['day'] = data['day'].apply(lambda x: days[x-1])
+    json_data = {
+        "labels": data['day'].astype(str).to_numpy(),
         "values": data['waste_qte'].to_numpy()
     }
 

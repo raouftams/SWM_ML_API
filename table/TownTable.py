@@ -162,6 +162,64 @@ class TownTable(Table):
             if result != []:
                 return result
         return None
+    
+    def get_population_year_town(self, code, year, db_connection):
+        if db_connection != None:
+            #create cursor
+            cursor = db_connection.cursor()
+            #execute query
+            sql = "select pop2016 from commune where code = '{}'".format(code)
+            if(year == 2017):
+                sql = "select pop2017 from commune where code = '{}'".format(code)
+            if(year == 2018):
+                sql = "select pop2018 from commune where code = '{}'".format(code)
+            if(year == 2019):
+                sql = "select 2019 from commune where code = '{}'".format(code)
+            if(year == 2020):
+                sql = "select pop2020 from commune where code = '{}'".format(code)
+            if(year == 2021):
+                sql = "select pop2021 from commune where code = '{}'".format(code)
+            if(year == 2022):
+                sql = "select pop2022 from commune where code = '{}'".format(code)
+
+            cursor.execute(sql)
+            #get result
+            result = cursor.fetchone()
+            #close cursor
+            cursor.close()
+            #check if result is empty
+            if result != []:
+                return result
+        return None
+
+    def get_population_year_unity(self, code, year, db_connection):
+        if db_connection != None:
+            #create cursor
+            cursor = db_connection.cursor()
+            #execute query
+            sql = "select sum(pop2016) from commune where code_unity = '{}'".format(code)
+            if(year == 2017):
+                sql = "select sum(pop2017) from commune where code_unity = '{}'".format(code)
+            if(year == 2018):
+                sql = "select sum(pop2018) from commune where code_unity = '{}'".format(code)
+            if(year == 2019):
+                sql = "select sum(2019) from commune where code_unity = '{}'".format(code)
+            if(year == 2020):
+                sql = "select sum(pop2020) from commune where code_unity = '{}'".format(code)
+            if(year == 2021):
+                sql = "select sum(pop2021) from commune where code_unity = '{}'".format(code)
+            if(year == 2022):
+                sql = "select sum(pop2022) from commune where code_unity = '{}'".format(code)
+
+            cursor.execute(sql)
+            #get result
+            result = cursor.fetchone()
+            #close cursor
+            cursor.close()
+            #check if result is empty
+            if result != []:
+                return result
+        return None
 
     #check if town name exists
     def exists_name(self, name, db_connection):

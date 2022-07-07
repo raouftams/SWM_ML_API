@@ -89,7 +89,7 @@ def preprocess_data(df: pd.DataFrame):
     #change columns order and put the net column as class column
     df["y"] = df['net']/1000
     df['y'] = df['y'].astype(int)
-    df['y'] = df['y'].rolling(7).mean()
+    #df['y'] = df['y'].rolling(7).mean()
     df.dropna(axis=0, inplace=True)
     #group data
     #df['y'] = df.groupby(['date', 'code_town'])['y'].transform('sum')
@@ -244,7 +244,7 @@ train_size = int(len(dataset) * 0.75)
 test_size = len(dataset) - train_size
 train, test = dataset[0:train_size,:], dataset[train_size:len(dataset),:]
 # reshape into X=t and Y=t+1
-look_back = 365
+look_back = 5
 trainX, trainY = create_dataset(train, look_back)
 testX, testY = create_dataset(test, look_back)
 #print(trainY)
@@ -257,16 +257,26 @@ dataX, dataY = create_dataset(dataset, look_back)
 # create and fit the LSTM network
 batch_size = 1
 #model = Sequential()
-##LSTM model
-#model.add(LSTM(4, return_sequences=True, batch_input_shape=(batch_size, look_back+8, 1), stateful=True))
-#model.add(LSTM(4, return_sequences=True))
-#model.add(LSTM(4))
+###LSTM model
+#model.add(LSTM(50, batch_input_shape=(batch_size, look_back+8, 1), stateful=True))
 #model.add(Dense(1))
 #model.compile(loss='mean_squared_error', optimizer='adam')
 #print('model created')
+#loss = []
+#val_loss = []
 #for i in range(20):
-#    model.fit(dataX, dataY, epochs=1, batch_size=batch_size, verbose=2, shuffle=False)
+#    history = model.fit(dataX, dataY, epochs=1, validation_split=0.2, batch_size=batch_size, verbose=2, shuffle=False)
+#    loss.append(history.history['loss'])
+#    val_loss.append(history.history['val_loss'])
 #    model.reset_states()
+#
+#pyplot.plot(loss)
+#pyplot.plot(val_loss)
+#pyplot.title('model loss')
+#pyplot.ylabel('loss')
+#pyplot.xlabel('epoch')
+#pyplot.legend(['train', 'val'], loc='upper left')
+#pyplot.show()
 
 #ANN model
 #model.add(GRU(50, input_shape=(look_back+8, 1)))
@@ -286,8 +296,6 @@ batch_size = 1
 #savePkl(model, 'models/gru365.pkl')
 #model = openPkl('models/gru.pkl')
 #trainPredict = model.predict(trainX, batch_size=batch_size)
-#pyplot.plot(trainPredict)
-#pyplot.show()
 #model.reset_states()
 #testPredict = model.predict(testX, batch_size=batch_size)
 
@@ -332,9 +340,16 @@ new_df['date'] = new_df['date'].apply(lambda x: x.replace(year = x.year + 1))
 new_df = add_hijri_holidays(new_df)
 new_df = preprocess_data(new_df)[['day', 'month', 'year', 'temperature', 'vent', 'population', 'holiday', 'season', 'y']]
 
-print(new_df)
 
+print(new_df)
+new_df = new_df.iloc[10:]
+print(new_df)
 model = openPkl('models/lstmexog.pkl')
+
+scale_array = new_df['y'].to_numpy()
+scaler2 = MinMaxScaler()
+test = scaler2.fit_transform(scale_array.reshape(-1, 1))
+
 
 new_dataset = new_df.to_numpy()
 new_dataset = new_dataset.astype('float32')
@@ -343,11 +358,23 @@ scaler = MinMaxScaler(feature_range=(0, 1))
 new_dataset = scaler.fit_transform(new_dataset)
 new_datasetX, new_datasetY = create_dataset(new_dataset, 3)
 new_datasetX = np.reshape(new_datasetX, (new_datasetX.shape[0], new_datasetX.shape[1], 1))
-y_pred = model.predict(new_datasetX[0:50, :], batch_size=batch_size)
-pyplot.plot(new_datasetY)
-pyplot.plot(y_pred)
-pyplot.show()
+y_pred = model.predict(new_datasetX, batch_size=batch_size)
+predicted = scaler2.inverse_transform(y_pred)
+#savePkl(predicted, "predictions/prediction2022.pkl")
 
+#pyplot.plot(new_datasetY, label='Observed')
+#pyplot.plot(predicted, label='Prediction 2022')
+#pyplot.legend(loc="upper left")
+#pyplot.show()
+prediction_df = pd.DataFrame(predicted, columns = ['net'])
+start = pd.to_datetime('2022-01-01')
+rng = pd.date_range(start, periods=350)
+df = pd.DataFrame({'date': rng, 'net': prediction_df['net']})
+#pyplot.plot(df['net'])
+#pyplot.show()
+
+df.to_pickle("predictions/predictions_df_2022.pkl")
+#print(prediction_df)
 #new_df = new_df.set_index(new_df['date'])
 #new_df.drop('date', axis=1, inplace=True)
 #new_df['y'] = new_df['y'].apply(lambda x: 0)
@@ -357,7 +384,7 @@ pyplot.show()
 #scale_array = old_df['y'].to_numpy()
 #scaler2 = MinMaxScaler()
 #test = scaler2.fit_transform(scale_array.reshape(-1, 1))
-#
+##
 #model = openPkl('models/lstmexog.pkl')
 #i = 1
 #for index, row in new_df.iterrows():
@@ -384,13 +411,13 @@ pyplot.show()
 #    old_df.iloc[-1, old_df.columns.get_loc('y')] = predicted[0]
 #    
 #print(old_df)
-#predicted_year = old_df[old_df.index > 364]['y'].to_numpy()
-#print(predicted_year)
-#old_data = old_df[old_df.index < 365]['y'].to_numpy()
-#print(old_data)
-#pyplot.plot(old_data)
-#pyplot.plot(predicted)
-#pyplot.show()
+predicted_year = old_df[old_df.index > 364]['y'].to_numpy()
+print(predicted_year)
+old_data = old_df[old_df.index < 365]['y'].to_numpy()
+print(old_data)
+pyplot.plot(old_data)
+pyplot.plot(predicted)
+pyplot.show()
             
     
     

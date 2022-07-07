@@ -82,6 +82,7 @@ async def all_unities():
 async def all_towns_waste_qte(year, month):
     rotation_table = RotationTable()
     data = rotation_table.get_waste_qte_by_year_month_towns(year, month, db_connection)
+    data.fillna(0, axis=0, inplace=True)
     json_data = {
         'values': data['waste_qte'].to_numpy(),
         'regions': data['code_town'].to_numpy()
@@ -93,6 +94,7 @@ async def all_towns_waste_qte(year, month):
 async def all_unities_waste_qte(year, month):
     rotation_table = RotationTable()
     data = rotation_table.get_waste_qte_by_year_month_unities(year, month, db_connection)
+    data.fillna(0, axis=0, inplace=True)
     json_data = {
         'values': data['waste_qte'].to_numpy(),
         'regions': data['code_unity'].to_numpy()
@@ -104,6 +106,7 @@ async def all_unities_waste_qte(year, month):
 async def all_towns_waste_qte(year, month):
     rotation_table = RotationTable()
     data = rotation_table.get_efficiency_by_year_month_towns(year, month, db_connection)
+    data.fillna(0, axis=0, inplace=True)
     json_data = {
         'values': data['efficiency'].to_numpy(),
         'regions': data['code_town'].to_numpy()
@@ -115,6 +118,7 @@ async def all_towns_waste_qte(year, month):
 async def all_unities_waste_qte(year, month):
     rotation_table = RotationTable()
     data = rotation_table.get_efficiency_by_year_month_unities(year, month, db_connection)
+    data.fillna(0, axis=0, inplace=True)
     json_data = {
         'values': data['efficiency'].to_numpy(),
         'regions': data['code_unity'].to_numpy()
