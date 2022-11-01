@@ -8,7 +8,7 @@ def connect():
     try:
         # connect to the PostgreSQL server
         print('Connecting to the PostgreSQL database...')
-        conn = psycopg2.connect(host="localhost", database="swm_ml", user="raouftams", password="raoufn23")
+        conn = psycopg2.connect(host="localhost", database="swm_ml", user="username", password="password")
         return conn
 
     except (Exception, psycopg2.DatabaseError) as error:
